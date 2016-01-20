@@ -37,6 +37,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.Vector;
 
 import javax.net.ssl.SSLHandshakeException;
 import javax.swing.ImageIcon;
@@ -48,10 +49,15 @@ import javax.swing.SwingWorker;
 import javax.swing.filechooser.FileFilter;
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.XMLPropertiesConfiguration;
 import org.apache.commons.httpclient.URI;
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
+import org.parosproxy.paros.CommandLine;
 import org.parosproxy.paros.Constant;
 import org.parosproxy.paros.control.Control;
+import org.parosproxy.paros.extension.CommandLineArgument;
+import org.parosproxy.paros.extension.CommandLineListener;
 import org.parosproxy.paros.extension.Extension;
 import org.parosproxy.paros.extension.ExtensionAdaptor;
 import org.parosproxy.paros.extension.ExtensionHook;
@@ -79,14 +85,13 @@ import org.zaproxy.zap.utils.ZapXmlConfiguration;
 import org.zaproxy.zap.view.ScanStatus;
 import org.zaproxy.zap.view.ZapMenuItem;
 
-public class ExtensionAutoUpdate extends ExtensionAdaptor implements CheckForUpdateCallback {
+public class ExtensionAutoUpdate extends ExtensionAdaptor implements CheckForUpdateCallback, CommandLineListener {
 	
 	// The short URL means that the number of checkForUpdates can be tracked - see https://bitly.com/u/psiinon
 	// Note that URLs must now use https (unless you change the code;)
-	
-    private static final String ZAP_VERSIONS_XML_SHORT = "https://bit.ly/owaspzap-2-4-2";
+    private static final String ZAP_VERSIONS_DEV_XML_SHORT = "https://bit.ly/owaspzap-dev";
     private static final String ZAP_VERSIONS_DEV_XML_WEEKLY_SHORT = "https://bit.ly/owaspzap-devw";
-    private static final String ZAP_VERSIONS_XML_FULL = "https://raw.githubusercontent.com/zaproxy/zap-admin/master/ZapVersions-2.4.xml";
+    private static final String ZAP_VERSIONS_DEV_XML_FULL = "https://raw.githubusercontent.com/zaproxy/zap-admin/master/ZapVersions-dev.xml";
 
 	// URLs for use when testing locally ;)
 	//private static final String ZAP_VERSIONS_XML_SHORT = "https://localhost:8080/zapcfu/ZapVersions.xml";
@@ -118,6 +123,13 @@ public class ExtensionAutoUpdate extends ExtensionAdaptor implements CheckForUpd
     // Files currently being downloaded
 	private List<Downloader> downloadFiles = new ArrayList<>();
 
+    private static final int ARG_CFU_INSTALL_IDX = 0;
+    private static final int ARG_CFU_UPDATE_IDX = 1;
+    private static final int[] ARG_IDXS = {
+    							ARG_CFU_INSTALL_IDX,
+    							ARG_CFU_UPDATE_IDX};
+	private CommandLineArgument[] arguments = new CommandLineArgument[ARG_IDXS.length];
+
     /**
      * 
      */
@@ -131,7 +143,7 @@ public class ExtensionAutoUpdate extends ExtensionAdaptor implements CheckForUpd
 	 */
 	private void initialize() {
         this.setName("ExtensionAutoUpdate");
-        this.setOrder(40);
+        this.setOrder(1);	// High order so that cmdline updates are installed asap
         this.downloadManager = new DownloadManager(Model.getSingleton().getOptionsParam().getConnectionParam());
         this.downloadManager.start();
         // Do this before it can get overwritten by the latest one
@@ -375,6 +387,7 @@ public class ExtensionAutoUpdate extends ExtensionAdaptor implements CheckForUpd
 	}
 	
 	public void installNewExtensions() {
+    	final OptionsParamCheckForUpdates options = getModel().getOptionsParam().getCheckForUpdatesParam();
 		List<Downloader> handledFiles = new ArrayList<>();
 		
 		for (Downloader dl : downloadFiles) {
@@ -397,7 +410,30 @@ public class ExtensionAutoUpdate extends ExtensionAdaptor implements CheckForUpd
 						}
 					}
 				} else if (AddOn.isAddOn(dl.getTargetFile())) {
-					AddOn ao = new AddOn(dl.getTargetFile());
+					File f = dl.getTargetFile();
+					if (! options.getDownloadDirectory().equals(dl.getTargetFile().getParentFile())) {
+						// Move the file to the specified directory - we do this after its been downloaded
+						// as these directories can be shared, and other ZAP instances could get incomplete
+						// add-ons
+						try {
+							f = new File(options.getDownloadDirectory(), dl.getTargetFile().getName());
+							logger.info("Moving downloaded add-on from " + dl.getTargetFile().getAbsolutePath() +
+									" to " + f.getAbsolutePath());
+							FileUtils.moveFile(dl.getTargetFile(), f);
+						} catch (Exception e) {
+							if (!f.exists() && dl.getTargetFile().exists()) {
+								logger.error("Failed to move downloaded add-on from " + dl.getTargetFile().getAbsolutePath() +
+										" to " + f.getAbsolutePath() + " - left at original location", e);
+								f = dl.getTargetFile();
+							} else {
+								logger.error("Failed to move downloaded add-on from " + dl.getTargetFile().getAbsolutePath() +
+										" to " + f.getAbsolutePath() + " - skipping", e);
+								continue;
+							}
+						}
+					}
+					
+					AddOn ao = new AddOn(f);
 					if (ao.canLoadInCurrentVersion()) {
 						install(ao);
 					} else {
@@ -436,6 +472,7 @@ public class ExtensionAutoUpdate extends ExtensionAdaptor implements CheckForUpd
 
 			View.getSingleton().getMainFrame().getMainFooterPanel().addFooterToolbarRightLabel(getScanStatus().getCountLabel());
 	    }
+	    extensionHook.addCommandLine(getCommandLineArguments());
         this.api = new AutoUpdateAPI(this);
         this.api.addApiOptions(getModel().getOptionsParam().getCheckForUpdatesParam());
         API.getInstance().registerApiImplementor(this.api);
@@ -685,7 +722,7 @@ public class ExtensionAutoUpdate extends ExtensionAdaptor implements CheckForUpd
 	    				// Using a thread as the first call could timeout
 	    				// and we dont want the ui to hang in the meantime
 	    				this.setName("ZAP-cfu");
-						String url = ZAP_VERSIONS_XML_SHORT;
+						String url = ZAP_VERSIONS_DEV_XML_SHORT;
 						if (Constant.isDailyBuild()) {
 							url = ZAP_VERSIONS_DEV_XML_WEEKLY_SHORT;
 						}
@@ -694,8 +731,8 @@ public class ExtensionAutoUpdate extends ExtensionAdaptor implements CheckForUpd
 							latestVersionInfo = new AddOnCollection(getRemoteConfigurationUrl(url), getPlatform(), false);
 						} catch (Exception e1) {
 							logger.debug("Failed to access " + url, e1);
-							logger.debug("Getting latest version info from " + ZAP_VERSIONS_XML_FULL);
-							url = ZAP_VERSIONS_XML_FULL;
+							logger.debug("Getting latest version info from " + ZAP_VERSIONS_DEV_XML_FULL);
+							url = ZAP_VERSIONS_DEV_XML_FULL;
 				    		try {
 				    			latestVersionInfo = new AddOnCollection(getRemoteConfigurationUrl(url), getPlatform(), false);
 				    		} catch (SSLHandshakeException e2) {
@@ -707,7 +744,7 @@ public class ExtensionAutoUpdate extends ExtensionAdaptor implements CheckForUpd
 					    			callback.insecureUrl(url, e2);
 					    		}
 							} catch (Exception e2) {
-								logger.debug("Failed to access " + ZAP_VERSIONS_XML_FULL, e2);
+								logger.debug("Failed to access " + ZAP_VERSIONS_DEV_XML_FULL, e2);
 							}
 						}
 			    		if (callback != null && latestVersionInfo != null) {
@@ -1296,4 +1333,120 @@ public class ExtensionAutoUpdate extends ExtensionAdaptor implements CheckForUpd
 	public boolean supportsDb(String type) {
     	return true;
     }
+
+    private CommandLineArgument[] getCommandLineArguments() {
+        arguments[ARG_CFU_INSTALL_IDX] = new CommandLineArgument("-addoninstall", 1, null, "", 
+        		"-addoninstall <addon>    " + Constant.messages.getString("cfu.cmdline.install.help"));
+        arguments[ARG_CFU_UPDATE_IDX] = new CommandLineArgument("-addonupdate", 0, null, "", 
+        		"-addonupdate             " + Constant.messages.getString("cfu.cmdline.update.help"));
+        return arguments;
+    }
+
+
+	@Override
+	public void execute(CommandLineArgument[] args) {
+        if (arguments[ARG_CFU_UPDATE_IDX].isEnabled()) {
+        	AddOnCollection aoc = getLatestVersionInfo();
+        	// Create some temporary options with the settings we need
+        	OptionsParamCheckForUpdates options = new OptionsParamCheckForUpdates();
+        	options.load(new XMLPropertiesConfiguration());
+        	options.setCheckOnStart(true);
+        	options.setCheckAddonUpdates(true);
+        	options.setInstallAddonUpdates(true);
+			checkForAddOnUpdates(aoc, options);
+			while (downloadManager.getCurrentDownloadCount() > 0) {
+    			try {
+					Thread.sleep(200);
+				} catch (InterruptedException e) {
+					// Ignore
+				}
+			}
+    		CommandLine.info(Constant.messages.getString("cfu.cmdline.updated"));
+        }
+        if (arguments[ARG_CFU_INSTALL_IDX].isEnabled()) {
+        	Vector<String> params = arguments[ARG_CFU_INSTALL_IDX].getArguments();
+            if (params.size() == 1) {
+            	AddOnCollection aoc = getLatestVersionInfo();
+            	if (aoc == null) {
+            		CommandLine.error(Constant.messages.getString("cfu.cmdline.nocfu"));
+            	} else {
+            		String aoName = params.get(0);
+            		AddOn ao = aoc.getAddOn(aoName);
+            		if (ao == null) {
+                		CommandLine.error(MessageFormat.format(
+                                Constant.messages.getString("cfu.cmdline.noaddon"), aoName));
+            			return;
+            		}
+            		AddOnDependencyChecker addOnDependencyChecker = new AddOnDependencyChecker(getLocalVersionInfo(), aoc);
+            		AddOnDependencyChecker.AddOnChangesResult result;
+            		// Check to see if its already installed
+            		AddOn iao = getLocalVersionInfo().getAddOn(aoName);
+            		if (iao != null) {
+            			if (!ao.isUpdateTo(iao)) {
+                    		CommandLine.info(MessageFormat.format(
+                                    Constant.messages.getString("cfu.cmdline.addoninst"),
+                                    iao.getFile().getAbsolutePath()));
+                			return;
+            			}
+
+                        result = addOnDependencyChecker.calculateUpdateChanges(ao);
+                    } else {
+                        result = addOnDependencyChecker.calculateInstallChanges(ao);
+            		}
+            		
+                    if (!result.getUninstalls().isEmpty()) {
+                        CommandLine.info(
+                                MessageFormat.format(
+                                        Constant.messages.getString("cfu.cmdline.addonurl.unintalls.required"),
+                                        result.getUninstalls()));
+                        return;
+                    }
+
+                    Set<AddOn> allAddOns = new HashSet<>();
+                    allAddOns.addAll(result.getInstalls());
+                    allAddOns.addAll(result.getNewVersions());
+                    for (AddOn addOn : allAddOns) {
+                        CommandLine.info(MessageFormat.format(
+                                Constant.messages.getString("cfu.cmdline.addonurl"),
+                                addOn.getUrl()));
+                    }
+
+                    processAddOnChanges(null, result);
+
+                    while (downloadManager.getCurrentDownloadCount() > 0) {
+                        try {
+                            Thread.sleep(200);
+                        } catch (InterruptedException e) {
+                            // Ignore
+                        }
+                    }
+
+                    for (Downloader download : downloadManager.getProgress()) {
+                        if (download.isValidated()) {
+                            CommandLine.info(MessageFormat.format(
+                                    Constant.messages.getString("cfu.cmdline.addondown"),
+                                    download.getTargetFile().getAbsolutePath()));
+                        } else {
+                            CommandLine.error(MessageFormat.format(
+                                    Constant.messages.getString("cfu.cmdline.addondown.failed"),
+                                    download.getTargetFile().getName()));
+                        }
+                    }
+                    installNewExtensions();
+            	}
+            }
+        }
+	}
+	
+	@Override
+	public boolean handleFile(File file) {
+		// Not supported
+		return false;
+	}
+
+	@Override
+	public List<String> getHandledExtensions() {
+		// None
+		return null;
+	}
 }
