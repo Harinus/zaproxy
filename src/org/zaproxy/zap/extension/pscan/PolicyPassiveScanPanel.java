@@ -42,6 +42,8 @@ import org.parosproxy.paros.Constant;
 import org.parosproxy.paros.core.scanner.Plugin.AlertThreshold;
 import org.parosproxy.paros.model.Model;
 import org.parosproxy.paros.view.AbstractParamPanel;
+import org.parosproxy.paros.view.View;
+import org.zaproxy.zap.control.AddOn;
 import org.zaproxy.zap.utils.DisplayUtils;
 import org.zaproxy.zap.view.LayoutHelper;
 
@@ -54,9 +56,6 @@ public class PolicyPassiveScanPanel extends AbstractParamPanel {
     private JComboBox<String> applyToThreshold = null;
     private JComboBox<String> applyToThresholdTarget = null;
 
-    /**
-     *
-     */
     public PolicyPassiveScanPanel() {
         super();
         initialize();
@@ -121,9 +120,10 @@ public class PolicyPassiveScanPanel extends AbstractParamPanel {
         if (applyToThresholdTarget == null) {
             applyToThresholdTarget = new JComboBox<>();
             applyToThresholdTarget.addItem(Constant.messages.getString("ascan.policy.table.quality.all"));
-            applyToThresholdTarget.addItem(Constant.messages.getString("ascan.policy.table.quality.release"));
-            applyToThresholdTarget.addItem(Constant.messages.getString("ascan.policy.table.quality.beta"));
-            applyToThresholdTarget.addItem(Constant.messages.getString("ascan.policy.table.quality.alpha"));
+            View view = View.getSingleton();
+            applyToThresholdTarget.addItem(view.getStatusUI(AddOn.Status.release).toString());
+            applyToThresholdTarget.addItem(view.getStatusUI(AddOn.Status.beta).toString());
+            applyToThresholdTarget.addItem(view.getStatusUI(AddOn.Status.alpha).toString());
         }
         return applyToThresholdTarget;
     }
@@ -198,6 +198,12 @@ public class PolicyPassiveScanPanel extends AbstractParamPanel {
     public void saveParam(Object obj) throws Exception {
     	this.getPassiveScanTableModel().persistChanges();
     }
+    
+    @Override
+    public void reset() {
+        this.getPassiveScanTableModel().applyThresholdToAll(AlertThreshold.MEDIUM);
+        this.getPassiveScanTableModel().persistChanges();
+    }
 
     /**
      * This method initializes jScrollPane
@@ -233,6 +239,6 @@ public class PolicyPassiveScanPanel extends AbstractParamPanel {
 
     @Override
     public String getHelpIndex() {
-        return "ui.dialogs.options.pscan";
+        return "ui.dialogs.options.pscanrules";
     }
 }

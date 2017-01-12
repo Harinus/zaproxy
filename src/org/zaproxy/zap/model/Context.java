@@ -21,10 +21,12 @@ package org.zaproxy.zap.model;
 
 import java.awt.EventQueue;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import org.apache.log4j.Logger;
 import org.parosproxy.paros.core.scanner.Alert;
@@ -33,6 +35,7 @@ import org.parosproxy.paros.model.Session;
 import org.parosproxy.paros.model.SiteMap;
 import org.parosproxy.paros.model.SiteNode;
 import org.parosproxy.paros.network.HttpRequestHeader;
+import org.parosproxy.paros.view.View;
 import org.zaproxy.zap.authentication.AuthenticationMethod;
 import org.zaproxy.zap.authentication.ManualAuthenticationMethodType.ManualAuthenticationMethod;
 import org.zaproxy.zap.extension.authorization.AuthorizationDetectionMethod;
@@ -211,12 +214,47 @@ public class Context {
 	 * every node in the Site Tree.
 	 * 
 	 * @return the nodes in scope from site tree
+	 * @see #hasNodesInContextFromSiteTree()
 	 */
 	public List<SiteNode> getNodesInContextFromSiteTree() {
 		List<SiteNode> nodes = new LinkedList<>();
 		SiteNode rootNode = (SiteNode) session.getSiteTree().getRoot();
 		fillNodesInContext(rootNode, nodes);
 		return nodes;
+	}
+
+	/**
+	 * Tells whether or not there's at least one node from the sites tree in context.
+	 * 
+	 * @return {@code true} if the context has at least one node from the sites tree in context, {@code false} otherwise
+	 * @since 2.5.0
+	 * @see #getNodesInContextFromSiteTree()
+	 */
+	public boolean hasNodesInContextFromSiteTree() {
+		return hasNodesInContext((SiteNode) session.getSiteTree().getRoot());
+	}
+
+	/**
+	 * Tells whether or not there's at least one node from the sites tree in context.
+	 * <p>
+	 * The whole tree is traversed until is found one node in context.
+	 * 
+	 * @param node the node to check, recursively
+	 * @return {@code true} if the context has at least one node from the sites tree in context, {@code false} otherwise
+	 */
+	private boolean hasNodesInContext(SiteNode node) {
+		@SuppressWarnings("unchecked")
+		Enumeration<SiteNode> en = node.children();
+		while (en.hasMoreElements()) {
+			SiteNode sn = en.nextElement();
+			if (isInContext(sn)) {
+				return true;
+			}
+			if (hasNodesInContext(sn)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -259,10 +297,10 @@ public class Context {
 	}
 
 	/**
-	 * Fills a given list with nodes in scope, searching recursively.
+	 * Tells whether or not the given node or any of its child nodes are in context.
 	 * 
-	 * @param rootNode the root node
-	 * @param nodesList the nodes list
+	 * @param node the node to start the check
+	 * @return {@code true} if at least one node is in context, {@code false} otherwise
 	 */
 	private boolean isContainsNodesInContext(SiteNode node) {
 		if (isInContext(node)) {
@@ -280,21 +318,48 @@ public class Context {
 	}
 
 	public List<String> getIncludeInContextRegexs() {
-		return includeInRegexs;
+		return Collections.unmodifiableList(includeInRegexs);
 	}
 
-	private void checkRegexs(List<String> regexs) throws Exception {
-		for (String url : regexs) {
-			url = url.trim();
-			if (url.length() > 0) {
-				Pattern.compile(url, Pattern.CASE_INSENSITIVE);
-			}
+	/**
+	 * Validates that the given regular expressions are not {@code null} nor invalid.
+	 *
+	 * @param regexs the regular expressions to be validated, must not be {@code null}
+	 * @throws IllegalArgumentException if one of the regular expressions is {@code null}.
+	 * @throws PatternSyntaxException if one of the regular expressions is invalid.
+	 */
+	private static void validateRegexs(List<String> regexs) {
+		for (String regex : regexs) {
+			validateRegex(regex);
 		}
 	}
 
-	public void setIncludeInContextRegexs(List<String> includeRegexs) throws Exception {
-		// Check they are all valid regexes first
-		checkRegexs(includeRegexs);
+	/**
+	 * Validates that the given regular expression is not {@code null} nor invalid.
+	 *
+	 * @param regex the regular expression to be validated
+	 * @throws IllegalArgumentException if the regular expression is {@code null}.
+	 * @throws PatternSyntaxException if the regular expression is invalid.
+	 */
+	private static void validateRegex(String regex) {
+		if (regex == null) {
+			throw new IllegalArgumentException("The regular expression must not be null.");
+		}
+		String trimmedRegex = regex.trim();
+		if (!trimmedRegex.isEmpty()) {
+			Pattern.compile(trimmedRegex, Pattern.CASE_INSENSITIVE);
+		}
+	}
+
+	/**
+	 * Sets the regular expressions used to include a URL in context.
+	 *
+	 * @param includeRegexs the regular expressions
+	 * @throws IllegalArgumentException if one of the regular expressions is {@code null}.
+	 * @throws PatternSyntaxException if one of the regular expressions is invalid.
+	 */
+	public void setIncludeInContextRegexs(List<String> includeRegexs) {
+		validateRegexs(includeRegexs);
 		// Check if theyve been changed
 		if (includeInRegexs.size() == includeRegexs.size()) {
 			boolean changed = false;
@@ -330,18 +395,24 @@ public class Context {
 	}
 
 	public void addIncludeInContextRegex(String includeRegex) {
-		Pattern p = Pattern.compile(includeRegex, Pattern.CASE_INSENSITIVE);
-		includeInPatterns.add(p);
+		validateRegex(includeRegex);
+		includeInPatterns.add(Pattern.compile(includeRegex, Pattern.CASE_INSENSITIVE));
 		includeInRegexs.add(includeRegex);
 	}
 
 	public List<String> getExcludeFromContextRegexs() {
-		return excludeFromRegexs;
+		return Collections.unmodifiableList(excludeFromRegexs);
 	}
 
-	public void setExcludeFromContextRegexs(List<String> excludeRegexs) throws Exception {
-		// Check they are all valid regexes first
-		checkRegexs(excludeRegexs);
+	/**
+	 * Sets the regular expressions used to exclude a URL from the context.
+	 *
+	 * @param excludeRegexs the regular expressions
+	 * @throws IllegalArgumentException if one of the regular expressions is {@code null}.
+	 * @throws PatternSyntaxException if one of the regular expressions is invalid.
+	 */
+	public void setExcludeFromContextRegexs(List<String> excludeRegexs) {
+		validateRegexs(excludeRegexs);
 		// Check if theyve been changed
 		if (excludeFromRegexs.size() == excludeRegexs.size()) {
 			boolean changed = false;
@@ -370,8 +441,8 @@ public class Context {
 	}
 
 	public void addExcludeFromContextRegex(String excludeRegex) {
-		Pattern p = Pattern.compile(excludeRegex, Pattern.CASE_INSENSITIVE);
-		excludeFromPatterns.add(p);
+		validateRegex(excludeRegex);
+		excludeFromPatterns.add(Pattern.compile(excludeRegex, Pattern.CASE_INSENSITIVE));
 		excludeFromRegexs.add(excludeRegex);
 	}
 
@@ -387,11 +458,28 @@ public class Context {
 		this.techSet = techSet;
 	}
 
+	/**
+	 * Gets the name of the context.
+	 *
+	 * @return the name of the context, never {@code null} (since TODO add version).
+	 */
 	public String getName() {
 		return name;
 	}
 
+	/**
+	 * Sets the name of the context.
+	 *
+	 * @param name the new name of the context
+	 * @throws IllegalContextNameException (since TODO add version) if the given name is {@code null} or empty.
+	 */
 	public void setName(String name) {
+		if (name == null || name.isEmpty()) {
+			throw new IllegalContextNameException(
+					IllegalContextNameException.Reason.EMPTY_NAME,
+					"The context name must not be null nor empty.");
+		}
+
 		this.name = name;
 	}
 
@@ -486,7 +574,7 @@ public class Context {
 	}
 
 	public void restructureSiteTree() {
-        if (EventQueue.isDispatchThread()) {
+        if (!View.isInitialised() || EventQueue.isDispatchThread()) {
         	restructureSiteTreeEventHandler();
         } else {
             try {
@@ -515,8 +603,8 @@ public class Context {
 		// log.debug("checkNode " + sn.getHierarchicNodeName());		// Useful for debugging
 		int origChildren = sn.getChildCount();
 		int movedChildren = 0;
-		for (int i=origChildren; i > 0; i--) {
-			if (checkNode((SiteNode)sn.getChildAt(i-1))) {
+		for (SiteNode childNode : getChildren(sn)) {
+			if (checkNode(childNode)) {
 				movedChildren++;
 			}
 		}
@@ -558,6 +646,25 @@ public class Context {
 		
 	}
 
+	/**
+	 * Gets the child nodes of the given site node.
+	 *
+	 * @param siteNode the site node that will be used, must not be {@code null}
+	 * @return a {@code List} with the child nodes, never {@code null}
+	 */
+	private List<SiteNode> getChildren(SiteNode siteNode) {
+		int childCount = siteNode.getChildCount();
+		if (childCount == 0) {
+			return Collections.emptyList();
+		}
+
+		List<SiteNode> children = new ArrayList<>(childCount);
+		for (int i = 0; i < childCount; i++) {
+			children.add((SiteNode) siteNode.getChildAt(i));
+		}
+		return children;
+	}
+
 	private void moveNode (SiteMap sitesTree, SiteNode sn) {
 		List<Alert> alerts = sn.getAlerts();
 		
@@ -576,15 +683,11 @@ public class Context {
 	
 	private void deleteNode (SiteMap sitesTree, SiteNode sn) {
 		log.debug("Deleting node " + sn.getHierarchicNodeName());
-		List<Alert> alerts = sn.getAlerts();
-		HistoryReference href = sn.getHistoryReference();
+		sn.deleteAlerts(sn.getAlerts());
 		
 		// Remove old one
-		for (Alert alert : alerts) {
-			sn.deleteAlert(alert);
-		}
 		sitesTree.removeNodeFromParent(sn);
-		sitesTree.removeHistoryReference(href.getHistoryId());
+		sitesTree.removeHistoryReference(sn.getHistoryReference().getHistoryId());
 	}
 	
 	

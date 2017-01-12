@@ -40,6 +40,12 @@
 // ZAP: 2015/07/25 Do not log error if the duplicated scanner is (apparently) a newer/older version
 // ZAP: 2015/08/19 Issue 1785: Plugin enabled even if dependencies are not, "hangs" active scan
 // ZAP: 2015/11/02 Issue 1969: Issues with installation of scanners
+// ZAP: 2015/12/21 Issue 2112: Wrong policy on active Scan
+// ZAP: 2016/01/26 Fixed findbugs warning
+// ZAP: 2016/05/04 Use existing Plugin instances when setting them as completed
+// ZAP: 2016/06/27 Reduce log level when loading the plugins
+// ZAP: 2016/06/29 Do not log when cloning PluginFactory
+// ZAP: 2016/07/25 Fix to correct handling of lists in plugins
 
 package org.parosproxy.paros.core.scanner;
 
@@ -52,6 +58,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.HierarchicalConfiguration;
@@ -72,21 +79,27 @@ public class PluginFactory {
     private List<Plugin> listCompleted = new ArrayList<Plugin>();
     private int totalPluginToRun = 0;
     private boolean init = false;
-    private Configuration config = new HierarchicalConfiguration();
+    private Configuration config;
 
-    /**
-     *
-     */
     public PluginFactory() {
         super();
+        HierarchicalConfiguration configuration = new HierarchicalConfiguration();
+        configuration.setDelimiterParsingDisabled(true);
+        config = configuration;
     }
     
-    private static List<AbstractPlugin> getLoadedPlugins() {
+    private static synchronized void initPlugins() {
     	if (loadedPlugins == null) {
 	    	loadedPlugins = new ArrayList<>(CoreFunctionality.getBuiltInActiveScanRules());
 	    	loadedPlugins.addAll(ExtensionFactory.getAddOnLoader().getActiveScanRules());
 	        //sort by the criteria below.
 	        Collections.sort(loadedPlugins, riskComparator);
+    	}
+    }
+    
+    private static List<AbstractPlugin> getLoadedPlugins() {
+    	if (loadedPlugins == null) {
+    		initPlugins();
     	}
     	return loadedPlugins;
     }
@@ -96,7 +109,7 @@ public class PluginFactory {
      *
      * @param plugin the plugin that will be checked
      * @return {@code true} if the plugin was already loaded, {@code false} otherwise
-     * @since TODO add version
+     * @since 2.4.3
      */
     public static boolean isPluginLoaded(AbstractPlugin plugin) {
         if (loadedPlugins == null) {
@@ -132,7 +145,7 @@ public class PluginFactory {
     }
     
     /**
-     * @deprecated (TODO add version) Use {@link #loadedPlugin(AbstractPlugin)} instead, the status of the scanner is not
+     * @deprecated (2.4.3) Use {@link #loadedPlugin(AbstractPlugin)} instead, the status of the scanner is not
      *             properly set.
      * @see AbstractPlugin#getStatus()
      */
@@ -162,7 +175,7 @@ public class PluginFactory {
     }
     
     /**
-     * @deprecated (TODO add version) Use {@link #unloadedPlugin(AbstractPlugin)} instead, which ensures that the exact scanner
+     * @deprecated (2.4.3) Use {@link #unloadedPlugin(AbstractPlugin)} instead, which ensures that the exact scanner
      *             instance is unloaded.
      */
     @Deprecated
@@ -352,31 +365,32 @@ public class PluginFactory {
             for (int i = 0; i < getLoadedPlugins().size(); i++) {
                 // ZAP: Removed unnecessary cast.
                 try {
-                    Plugin plugin = getLoadedPlugins().get(i);
-                    plugin.setConfig(config);
-                    plugin.createParamIfNotExist();
-                    plugin.loadFrom(config);
-                    if (!plugin.isVisible()) {
-                        log.info("Plugin " + plugin.getName() + " not visible");
+                    Plugin loadedPlugin = getLoadedPlugins().get(i);
+                    if (!loadedPlugin.isVisible()) {
+                        log.info("Plugin " + loadedPlugin.getName() + " not visible");
                         continue;
                     }
                     
-                    if (plugin.isDepreciated()) {
+                    if (loadedPlugin.isDepreciated()) {
                         // ZAP: ignore all depreciated plugins
-                        log.info("Plugin " + plugin.getName() + " depricated");
+                        log.info("Plugin " + loadedPlugin.getName() + " depricated");
                         continue;
                     }
                     
-                    log.info("loaded plugin " + plugin.getName());
+                    if (!canAddPlugin(mapAllPlugin, loadedPlugin)) {
+                        continue;
+                    }
+
+                    Plugin plugin = createNewPlugin(loadedPlugin, config);
                     if (log.isDebugEnabled()) {
-                    	log.debug("Theshold=" + plugin.getAlertThreshold().name() + " Strength=" + plugin.getAttackStrength().toString());
+                        log.debug("loaded plugin " + plugin.getName() +
+                        " with: Threshold=" + plugin.getAlertThreshold().name() +
+                        " Strength=" + plugin.getAttackStrength().toString());
                     }
                     
-                    if (canAddPlugin(mapAllPlugin, plugin)) {
-                        // ZAP: Changed to use the method Integer.valueOf.
-                        mapAllPlugin.put(Integer.valueOf(plugin.getId()), plugin);
-                        mapAllPluginOrderCodeName.put(plugin.getCodeName(), plugin);
-                    }
+                    // ZAP: Changed to use the method Integer.valueOf.
+                    mapAllPlugin.put(Integer.valueOf(plugin.getId()), plugin);
+                    mapAllPluginOrderCodeName.put(plugin.getCodeName(), plugin);
                     
                 } catch (Exception e) {
                     log.error(e.getMessage(), e);
@@ -387,6 +401,17 @@ public class PluginFactory {
                 listAllPlugin.add(iterator.next());
             }
         }
+    }
+
+    private static Plugin createNewPlugin(Plugin plugin, Configuration config) throws ReflectiveOperationException {
+        Plugin newPlugin = plugin.getClass().newInstance();
+        newPlugin.setConfig(new BaseConfiguration());
+        plugin.cloneInto(newPlugin);
+
+        newPlugin.setConfig(config);
+        newPlugin.createParamIfNotExist();
+        newPlugin.loadFrom(config);
+        return newPlugin;
     }
 
     private static boolean canAddPlugin(Map<Integer, Plugin> plugins, Plugin plugin) {
@@ -453,7 +478,28 @@ public class PluginFactory {
     public boolean addPlugin(String name) {
         try {
         	Class<?> c = ExtensionFactory.getAddOnLoader().loadClass(name);
-        	return this.addPlugin((AbstractPlugin) c.newInstance());
+        	Plugin plugin = (AbstractPlugin) c.newInstance();
+
+            boolean duplicatedId = mapAllPlugin.get(Integer.valueOf(plugin.getId())) != null;
+            if (this.addPlugin(plugin)) {
+                log.info("loaded plugin " + plugin.getName());
+                if (duplicatedId) {
+                    log.error("Duplicate id " + plugin.getName() + " "
+                            + mapAllPlugin.get(Integer.valueOf(plugin.getId())).getName());
+                }
+                return true;
+            }
+
+            if (!plugin.isVisible()) {
+                log.info("Plugin " + plugin.getName() + " not visible");
+                return false;
+            }
+
+            if (plugin.isDepreciated()) {
+                log.info("Plugin " + plugin.getName() + " deprecated");
+                return false;
+            }
+            return false;
         } catch (Exception e) {
             log.error(e.getMessage(), e);
             return false;
@@ -466,20 +512,11 @@ public class PluginFactory {
 
         plugin.createParamIfNotExist();
         if (!plugin.isVisible()) {
-            log.info("Plugin " + plugin.getName() + " not visible");
             return false;
         }
         
         if (plugin.isDepreciated()) {
-            // ZAP: ignore all depreciated plugins
-            log.info("Plugin " + plugin.getName() + " depricated");
             return false;
-        }
-        
-        log.info("loaded plugin " + plugin.getName());
-        if (mapAllPlugin.get(Integer.valueOf(plugin.getId())) != null) {
-            log.error("Duplicate id " + plugin.getName() + " "
-                    + mapAllPlugin.get(Integer.valueOf(plugin.getId())).getName());
         }
         
         mapAllPlugin.put(Integer.valueOf(plugin.getId()), plugin);
@@ -617,9 +654,11 @@ public class PluginFactory {
     }
 
     synchronized void setRunningPluginCompleted(Plugin plugin) {
-        listRunning.remove(plugin);
-        listCompleted.add(plugin);
-        plugin.setTimeFinished();
+        if (listRunning.remove(plugin)) {
+            Plugin completedPlugin = mapAllPlugin.get(plugin.getId());
+            listCompleted.add(completedPlugin);
+            completedPlugin.setTimeFinished();
+        }
     }
 
     boolean isRunning(Plugin plugin) {

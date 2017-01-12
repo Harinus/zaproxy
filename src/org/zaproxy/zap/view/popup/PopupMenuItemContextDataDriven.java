@@ -34,7 +34,7 @@ import org.parosproxy.paros.view.View;
 import org.zaproxy.zap.model.Context;
 
 /**
- * @since TODO add version
+ * @since 2.4.3
  */
 public class PopupMenuItemContextDataDriven extends PopupMenuItemSiteNodeContainer {
 
@@ -50,7 +50,6 @@ public class PopupMenuItemContextDataDriven extends PopupMenuItemSiteNodeContain
         super("DataDrivenNodeX", true);
     }
 
-    /**/
     @Override
     public String getParentMenuName() {
         return Constant.messages.getString("context.flag.popup");

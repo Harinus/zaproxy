@@ -40,6 +40,8 @@
 // ZAP: 2015/03/04 Issue 1345: Added 'attack on start' option
 // ZAP: 2015/03/25 Issue 1573: Add option to inject plugin ID in header for all ascan requests
 // ZAP: 2015/10/01 Issue 1944:  Chart responses per second in ascan progress
+// ZAP: 2016/01/20 Issue 1959: Allow to active scan headers of all requests
+// ZAP: 2016/10/24 Issue 2951:  Support active scan rule and scan max duration
 
 package org.parosproxy.paros.core.scanner;
 
@@ -75,6 +77,9 @@ public class ScannerParam extends AbstractParam {
     private static final String ALLOW_ATTACK_ON_START = ACTIVE_SCAN_BASE_KEY + ".attackOnStart";
     private static final String MAX_CHART_TIME_IN_MINS = ACTIVE_SCAN_BASE_KEY + ".chartTimeInMins";
 
+    private static final String MAX_RULE_DURATION_IN_MINS = ACTIVE_SCAN_BASE_KEY + ".maxRuleDurationInMins";
+    private static final String MAX_SCAN_DURATION_IN_MINS = ACTIVE_SCAN_BASE_KEY + ".maxScanDurationInMins";
+
     // ZAP: Excluded Parameters
     private static final String EXCLUDED_PARAMS_KEY = ACTIVE_SCAN_BASE_KEY + ".excludedParameters";
     private static final String EXCLUDED_PARAM_NAME = "name";
@@ -84,6 +89,14 @@ public class ScannerParam extends AbstractParam {
     // ZAP: TARGET CONFIGURATION
     private static final String TARGET_INJECTABLE = ACTIVE_SCAN_BASE_KEY + ".injectable";
     private static final String TARGET_ENABLED_RPC = ACTIVE_SCAN_BASE_KEY + ".enabledRPC";
+
+    /**
+     * Configuration key to write/read the {@code scanHeadersAllRequests} flag.
+     * 
+     * @since 2.5.0
+     * @see #scanHeadersAllRequests
+     */
+    private static final String SCAN_HEADERS_ALL_REQUESTS = ACTIVE_SCAN_BASE_KEY + ".scanHeadersAllRequests";
 
     // ZAP: Configuration constants
     public static final int TARGET_QUERYSTRING = 1;
@@ -122,10 +135,25 @@ public class ScannerParam extends AbstractParam {
     private String defaultPolicy;
     private String attackPolicy;
     private int maxChartTimeInMins = DEFAULT_MAX_CHART_TIME_IN_MINS;
+    private int maxRuleDurationInMins = 0;
+    private int maxScanDurationInMins = 0;
 
     // ZAP: Variants Configuration
     private int targetParamsInjectable = TARGET_INJECTABLE_DEFAULT;
     private int targetParamsEnabledRPC = TARGET_ENABLED_RPC_DEFAULT;
+
+    /**
+     * Flag that indicates if the HTTP Headers of all requests should be scanned, not just requests that send parameters,
+     * through the query or request body.
+     * <p>
+     * Default value is {@code false}.
+     * 
+     * @since 2.5.0
+     * @see #SCAN_HEADERS_ALL_REQUESTS
+     * @see #isScanHeadersAllRequests()
+     * @see #setScanHeadersAllRequests(boolean)
+     */
+    private boolean scanHeadersAllRequests;
 
     // ZAP: Excluded Parameters
     private final List<ScannerParamFilter> excludedParams = new ArrayList<>();
@@ -158,6 +186,16 @@ public class ScannerParam extends AbstractParam {
 
         try {
             this.maxResultsToList = getConfig().getInt(MAX_RESULTS_LIST, 1000);
+        } catch (Exception e) {
+        }
+
+        try {
+            this.maxRuleDurationInMins = getConfig().getInt(MAX_RULE_DURATION_IN_MINS, 0);
+        } catch (Exception e) {
+        }
+
+        try {
+            this.maxScanDurationInMins = getConfig().getInt(MAX_SCAN_DURATION_IN_MINS, 0);
         } catch (Exception e) {
         }
 
@@ -223,6 +261,11 @@ public class ScannerParam extends AbstractParam {
 
         try {
             this.maxChartTimeInMins = getConfig().getInt(MAX_CHART_TIME_IN_MINS, DEFAULT_MAX_CHART_TIME_IN_MINS);
+        } catch (Exception e) {
+        }
+
+        try {
+            this.scanHeadersAllRequests = getConfig().getBoolean(SCAN_HEADERS_ALL_REQUESTS, false);
         } catch (Exception e) {
         }
 
@@ -380,7 +423,25 @@ public class ScannerParam extends AbstractParam {
         getConfig().setProperty(MAX_RESULTS_LIST, Integer.toString(this.maxResultsToList));
     }
 
-    /**
+    public int getMaxRuleDurationInMins() {
+		return maxRuleDurationInMins;
+	}
+
+	public void setMaxRuleDurationInMins(int maxRuleDurationInMins) {
+		this.maxRuleDurationInMins = maxRuleDurationInMins;
+        getConfig().setProperty(MAX_RULE_DURATION_IN_MINS, Integer.toString(this.maxRuleDurationInMins));
+	}
+
+	public int getMaxScanDurationInMins() {
+		return maxScanDurationInMins;
+	}
+
+	public void setMaxScanDurationInMins(int maxScanDurationInMins) {
+		this.maxScanDurationInMins = maxScanDurationInMins;
+        getConfig().setProperty(MAX_SCAN_DURATION_IN_MINS, Integer.toString(this.maxScanDurationInMins));
+	}
+
+	/**
      *
      * @param delayInMs
      */
@@ -545,5 +606,34 @@ public class ScannerParam extends AbstractParam {
 		this.maxChartTimeInMins = maxChartTimeInMins;
         getConfig().setProperty(MAX_CHART_TIME_IN_MINS, this.maxChartTimeInMins);
 	}
+
+    /**
+     * Tells whether or not the HTTP Headers of all requests should be scanned, not just requests that send parameters, through
+     * the query or request body.
+     *
+     * @return {@code true} if the HTTP Headers of all requests should be scanned, {@code false} otherwise
+     * @since 2.5.0
+     * @see #setScanHeadersAllRequests(boolean)
+     */
+    public boolean isScanHeadersAllRequests() {
+        return scanHeadersAllRequests;
+    }
+
+    /**
+     * Sets whether or not the HTTP Headers of all requests should be scanned, not just requests that send parameters, through
+     * the query or request body.
+     *
+     * @param scanAllRequests {@code true} if the HTTP Headers of all requests should be scanned, {@code false} otherwise
+     * @since 2.5.0
+     * @see #isScanHeadersAllRequests()
+     */
+    public void setScanHeadersAllRequests(boolean scanAllRequests) {
+        if (scanAllRequests == scanHeadersAllRequests) {
+            return;
+        }
+
+        this.scanHeadersAllRequests = scanAllRequests;
+        getConfig().setProperty(SCAN_HEADERS_ALL_REQUESTS, Boolean.valueOf(this.scanHeadersAllRequests));
+    }
 
 }
