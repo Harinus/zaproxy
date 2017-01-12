@@ -45,6 +45,7 @@ import org.parosproxy.paros.network.ConnectionParam;
 import org.parosproxy.paros.network.HttpMalformedHeaderException;
 import org.parosproxy.paros.network.HttpMessage;
 import org.parosproxy.paros.view.View;
+import org.zaproxy.zap.extension.ruleconfig.RuleConfigParam;
 import org.zaproxy.zap.model.GenericScanner2;
 import org.zaproxy.zap.model.Target;
 
@@ -77,14 +78,20 @@ public class ActiveScan extends org.parosproxy.paros.core.scanner.Scanner implem
 	private final List<Integer> hRefs = Collections.synchronizedList(new ArrayList<Integer>());
 	private final List<Integer> alerts = Collections.synchronizedList(new ArrayList<Integer>());
 
-	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+	private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> schedHandle;
 
 	private static final Logger log = Logger.getLogger(ActiveScan.class);
 
+	@Deprecated
 	public ActiveScan(String displayName, ScannerParam scannerParam, 
 			ConnectionParam param, ScanPolicy scanPolicy) {
-		super(scannerParam, param, scanPolicy);
+		this(displayName, scannerParam, param, scanPolicy, null);
+	}
+
+	public ActiveScan(String displayName, ScannerParam scannerParam, 
+			ConnectionParam param, ScanPolicy scanPolicy, RuleConfigParam ruleConfigParam) {
+		super(scannerParam, param, scanPolicy, ruleConfigParam);
 		this.displayName = displayName;
 		this.maxResultsToList = scannerParam.getMaxResultsToList();
 		// Easiest way to get the messages and alerts ;) 
@@ -119,7 +126,11 @@ public class ActiveScan extends org.parosproxy.paros.core.scanner.Scanner implem
 	}
 
     public int getTotalRequests() {
-		return this.rcTotals.getTotal();
+		int total = 0;
+		for (HostProcess process : this.getHostProcesses()) {
+			total += process.getRequestCount();
+		}
+		return total;
 	}
 	
 	public ResponseCountSnapshot getRequestHistory() {
@@ -143,6 +154,7 @@ public class ActiveScan extends org.parosproxy.paros.core.scanner.Scanner implem
 		super.start(target);
 		
 		if (View.isInitialised()) {
+			scheduler = Executors.newScheduledThreadPool(1);
 			// For now this is only supported in the desktop UI
 			final Runnable requestCounter = new Runnable() {
 	            public void run() {
@@ -159,7 +171,7 @@ public class ActiveScan extends org.parosproxy.paros.core.scanner.Scanner implem
 	            	rcLastSnapshot = currentSnapshot;
 	            }
 	        };
-	        schedHandle = scheduler.scheduleAtFixedRate(requestCounter, period, period, TimeUnit.SECONDS);
+	        schedHandle = scheduler.scheduleWithFixedDelay(requestCounter, period, period, TimeUnit.SECONDS);
 		}
 	}
 
@@ -204,10 +216,22 @@ public class ActiveScan extends org.parosproxy.paros.core.scanner.Scanner implem
 		}
 		this.progress = tot / this.getHostProcesses().size();
 	}
+	
+	/**
+	 * @deprecated (2.5.0) No longer used/needed, the request count is automatically updated/maintained by
+	 *             {@link HostProcess}.
+	 */
+	@Deprecated
+	public void updatePluginRequestCounts() {
+		// No longer used.
+	}
 
 	@Override
 	public void scannerComplete(int id) {
 		this.timeFinished = new Date();
+		if (scheduler != null) {
+			scheduler.shutdown();
+		}
 	}
 
 	//@Override

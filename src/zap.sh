@@ -39,10 +39,9 @@ if [ "`echo ${JAVA_OUTPUT} | grep "continuing with system-provided Java"`" ] ; t
   echo "    " $JAVA_OUTPUT
   echo "Unsetting JAVA_HOME and continuing with ZAP start-up"
   unset JAVA_HOME
-  JAVA_OUTPUT=$(java -version 2>&1)
 fi
 
-JAVA_VERSION=$(echo ${JAVA_OUTPUT} | awk -F\" 'NR == 1 { print $2 }')
+JAVA_VERSION=$(java -version 2>&1 | awk -F\" '/version/ { print $2 }')
 JAVA_MAJOR_VERSION=${JAVA_VERSION%%.*}
 JAVA_MINOR_VERSION=$(echo $JAVA_VERSION | awk -F\. '{ print $2 }')
 
@@ -79,21 +78,24 @@ elif [ -z "$MEM" ]; then
   echo "Failed to obtain current memory, using jvm default memory settings"
 else
   echo "Available memory: $MEM MB"
-  if [ "$MEM" -gt 1500 ]
-  then
-    JMEM="-Xmx512m"
-  else
-    if [ "$MEM" -gt 900 ]
-    then
-      JMEM="-Xmx256m"
-    else
-      if [ "$MEM" -gt 512 ]
-      then
-        JMEM="-Xmx128m"
-      fi
-    fi
+  if [ "$MEM" -gt 512 ]; then
+    # Always go with 1/4 of the available memory - specific JVMs may round this up or down
+    QMEM=$(($MEM/4))
+    JMEM="-Xmx${QMEM}m"
   fi
 fi
+
+ARGS=()
+for var in "$@"; do
+  if [[ "$var" == -Xmx* ]]; then
+    # Overridden by the user
+    JMEM="$var"
+  elif [[ $var != -psn_* ]]; then
+    # Strip the automatic -psn_x_xxxxxxx argument that OS X automatically passes into apps, since
+    # it freaks out ZAP
+    ARGS+=("$var")
+  fi
+done
 
 if [ -n "$JMEM" ]
 then
@@ -102,15 +104,8 @@ fi
 
 # Start ZAP; it's likely that -Xdock:icon would be ignored on other platforms, but this is known to work
 if [ "$OS" = "Darwin" ]; then
-  # Strip the automatic -psn_x_xxxxxxx argument that OS X automatically passes into apps, since
-  # it freaks out ZAP
-  ZAP_ARGS=()
-  for value in "$@"; do
-    [[ $value != -psn_* ]] && ZAP_ARGS+=( "$value" )
-  done
-
   # It's likely that -Xdock:icon would be ignored on other platforms, but this is known to work
-  exec java ${JMEM} -Xdock:icon="../Resources/ZAP.icns" -jar "${BASEDIR}/zap-dev.jar" "${ZAP_ARGS[@]}"
+  exec java ${JMEM} -Xdock:icon="../Resources/ZAP.icns" -jar "${BASEDIR}/zap-dev.jar" "${ARGS[@]}"
 else
-  exec java ${JMEM} -jar "${BASEDIR}/zap-dev.jar" "$@"
+  exec java ${JMEM} -jar "${BASEDIR}/zap-dev.jar" "${ARGS[@]}"
 fi

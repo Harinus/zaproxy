@@ -34,7 +34,6 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Vector;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -49,6 +48,7 @@ import org.bouncycastle.openssl.jcajce.JcaMiscPEMGenerator;
 import org.bouncycastle.util.io.pem.PemWriter;
 import org.parosproxy.paros.Constant;
 import org.parosproxy.paros.control.Control;
+import org.parosproxy.paros.control.Control.Mode;
 import org.parosproxy.paros.core.proxy.ProxyParam;
 import org.parosproxy.paros.core.scanner.Alert;
 import org.parosproxy.paros.db.DatabaseException;
@@ -63,18 +63,19 @@ import org.parosproxy.paros.model.HistoryReference;
 import org.parosproxy.paros.model.Model;
 import org.parosproxy.paros.model.Session;
 import org.parosproxy.paros.model.SessionListener;
+import org.parosproxy.paros.model.SiteMap;
 import org.parosproxy.paros.model.SiteNode;
 import org.parosproxy.paros.network.HttpHeader;
 import org.parosproxy.paros.network.HttpMalformedHeaderException;
 import org.parosproxy.paros.network.HttpMessage;
 import org.parosproxy.paros.network.HttpRequestHeader;
+import org.parosproxy.paros.network.HttpResponseHeader;
 import org.parosproxy.paros.network.HttpSender;
-import org.parosproxy.paros.network.HttpStatusCode;
+import org.parosproxy.paros.view.View;
 import org.zaproxy.zap.extension.alert.ExtensionAlert;
 import org.zaproxy.zap.extension.dynssl.ExtensionDynSSL;
 import org.zaproxy.zap.model.SessionUtils;
 import org.zaproxy.zap.utils.HarUtils;
-import org.zaproxy.zap.utils.Stats;
 
 import edu.umass.cs.benchlab.har.HarEntries;
 import edu.umass.cs.benchlab.har.HarLog;
@@ -85,7 +86,8 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 
 	private enum ScanReportType {
 		HTML,
-		XML
+		XML,
+		MD
 	}
 
 	private static final String PREFIX = "core";
@@ -94,6 +96,7 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 	private static final String ACTION_SAVE_SESSION = "saveSession";
 	private static final String ACTION_SNAPSHOT_SESSION = "snapshotSession";
 	
+	private static final String ACTION_ACCESS_URL = "accessUrl";
 	private static final String ACTION_SHUTDOWN = "shutdown";
 	private static final String ACTION_EXCLUDE_FROM_PROXY = "excludeFromProxy";
 	private static final String ACTION_CLEAR_EXCLUDED_FROM_PROXY = "clearExcludedFromProxy";
@@ -102,7 +105,8 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 	private static final String ACTION_SEND_REQUEST = "sendRequest";
 	private static final String ACTION_DELETE_ALL_ALERTS = "deleteAllAlerts";
 	private static final String ACTION_COLLECT_GARBAGE = "runGarbageCollection";
-	private static final String ACTION_CLEAR_STATS = "clearStats";
+	private static final String ACTION_SET_MODE = "setMode";
+	private static final String ACTION_DELETE_SITE_NODE = "deleteSiteNode";
 	
 	private static final String VIEW_ALERT = "alert";
 	private static final String VIEW_ALERTS = "alerts";
@@ -112,20 +116,22 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 	private static final String VIEW_URLS = "urls";
 	private static final String VIEW_MESSAGE = "message";
 	private static final String VIEW_MESSAGES = "messages";
+	private static final String VIEW_MODE = "mode";
 	private static final String VIEW_NUMBER_OF_MESSAGES = "numberOfMessages";
 	private static final String VIEW_VERSION = "version";
 	private static final String VIEW_EXCLUDED_FROM_PROXY = "excludedFromProxy";
 	private static final String VIEW_HOME_DIRECTORY = "homeDirectory";
-	private static final String VIEW_STATS = "stats";
 
 	private static final String OTHER_PROXY_PAC = "proxy.pac";
 	private static final String OTHER_SET_PROXY = "setproxy";
 	private static final String OTHER_ROOT_CERT = "rootcert";
 	private static final String OTHER_XML_REPORT = "xmlreport";
 	private static final String OTHER_HTML_REPORT = "htmlreport";
+    private static final String OTHER_MD_REPORT = "mdreport";
 	private static final String OTHER_MESSAGE_HAR = "messageHar";
 	private static final String OTHER_MESSAGES_HAR = "messagesHar";
 	private static final String OTHER_SEND_HAR_REQUEST = "sendHarRequest";
+	private static final String OTHER_SCRIPT_JS = "script.js";
 
 	private static final String PARAM_BASE_URL = "baseurl";
 	private static final String PARAM_COUNT = "count";
@@ -138,12 +144,51 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 	private static final String PARAM_ID = "id";
 	private static final String PARAM_REQUEST = "request";
 	private static final String PARAM_FOLLOW_REDIRECTS = "followRedirects";
-	private static final String PARAM_KEY_PREFIX = "keyPrefix";
+	private static final String PARAM_MODE = "mode";
+	private static final String PARAM_URL = "url";
+	private static final String PARAM_METHOD = "method";
+	private static final String PARAM_POST_DATA = "postData";
+
+	/* Update the version whenever the script is changed (once per release) */
+	protected static final int API_SCRIPT_VERSION = 1;
+	private static final String API_SCRIPT = 
+			"function submitScript() {\n" +
+			"  var button=document.getElementById('button');\n" +
+			"  var component=button.getAttribute('zap-component')\n" +
+			"  var type=button.getAttribute('zap-type')\n" +
+			"  var name=button.getAttribute('zap-name')\n" +
+			"  var format\n" +
+			"  if (type == 'other') {\n" +
+			"    format = 'OTHER'\n" +
+			"  } else {\n" +
+			"    format = document.getElementById('zapapiformat').value\n" +
+			"  }\n" +
+			"  \n" +
+			"  var url = '/' + format + '/' + component + '/' + type + '/' + name + '/'\n" +
+			"  var form=document.getElementById('zapform');\n" +
+			"  form.action = url;\n" +
+			"  if (form.elements[\"formMethod\"]) {\n" +
+			"    form.method = form.elements[\"formMethod\"].value;\n" +
+			"  }\n" +
+			"  form.submit();\n" +
+			"}\n" +
+			"document.addEventListener('DOMContentLoaded', function () {\n" +
+			"  var button=document.getElementById('button');\n" +
+			"  if (button) {\n" +
+			"    document.getElementById('button').addEventListener('click',  function(e) {submitScript();}, false);\n" +
+			"  }\n" +
+			"});\n";
+	/* Allow caching for up to one day */
+	private static final String API_SCRIPT_CACHE_CONTROL = "max-age=86400";
 
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd-HHmmss");
 	private boolean savingSession = false;
+    private static ExtensionHistory extHistory;
+
 
 	public CoreAPI() {
+		this.addApiAction(
+				new ApiAction(ACTION_ACCESS_URL, new String[] { PARAM_URL }, new String[] { PARAM_FOLLOW_REDIRECTS }));
 		this.addApiAction(new ApiAction(ACTION_SHUTDOWN));
 		this.addApiAction(new ApiAction(ACTION_NEW_SESSION, null, new String[] {PARAM_SESSION, PARAM_OVERWRITE_SESSION}));
 		this.addApiAction(new ApiAction(ACTION_LOAD_SESSION, new String[] {PARAM_SESSION}));
@@ -152,6 +197,7 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 		this.addApiAction(new ApiAction(ACTION_CLEAR_EXCLUDED_FROM_PROXY));
 		this.addApiAction(new ApiAction(ACTION_EXCLUDE_FROM_PROXY, new String[] {PARAM_REGEX}));
 		this.addApiAction(new ApiAction(ACTION_SET_HOME_DIRECTORY, new String[] {PARAM_DIR}));
+		this.addApiAction(new ApiAction(ACTION_SET_MODE, new String[] {PARAM_MODE}));
 		this.addApiAction(new ApiAction(ACTION_GENERATE_ROOT_CA));
 		this.addApiAction(new ApiAction(
 				ACTION_SEND_REQUEST,
@@ -159,7 +205,7 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 				new String[] { PARAM_FOLLOW_REDIRECTS }));
 		this.addApiAction(new ApiAction(ACTION_DELETE_ALL_ALERTS));
 		this.addApiAction(new ApiAction(ACTION_COLLECT_GARBAGE));
-		this.addApiAction(new ApiAction(ACTION_CLEAR_STATS, new String[] {PARAM_KEY_PREFIX}));
+		this.addApiAction(new ApiAction(ACTION_DELETE_SITE_NODE, new String[] {PARAM_URL}, new String[] {PARAM_METHOD, PARAM_POST_DATA}));
 		
 		this.addApiView(new ApiView(VIEW_ALERT, new String[] {PARAM_ID}));
 		this.addApiView(new ApiView(VIEW_ALERTS, null, 
@@ -172,16 +218,17 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 		this.addApiView(new ApiView(VIEW_MESSAGES, null, 
 				new String[] {PARAM_BASE_URL, PARAM_START, PARAM_COUNT}));
 		this.addApiView(new ApiView(VIEW_NUMBER_OF_MESSAGES, null, new String[] { PARAM_BASE_URL }));
+		this.addApiView(new ApiView(VIEW_MODE));
 		this.addApiView(new ApiView(VIEW_VERSION));
 		this.addApiView(new ApiView(VIEW_EXCLUDED_FROM_PROXY));
 		this.addApiView(new ApiView(VIEW_HOME_DIRECTORY));
-		this.addApiView(new ApiView(VIEW_STATS, null, new String[] { PARAM_KEY_PREFIX }));
 		
 		this.addApiOthers(new ApiOther(OTHER_PROXY_PAC, false));
 		this.addApiOthers(new ApiOther(OTHER_ROOT_CERT, false));
 		this.addApiOthers(new ApiOther(OTHER_SET_PROXY, new String[] {PARAM_PROXY_DETAILS}));
 		this.addApiOthers(new ApiOther(OTHER_XML_REPORT));
 		this.addApiOthers(new ApiOther(OTHER_HTML_REPORT));
+        this.addApiOthers(new ApiOther(OTHER_MD_REPORT));
 		this.addApiOthers(new ApiOther(OTHER_MESSAGE_HAR, new String[] {PARAM_ID}));
 		this.addApiOthers(new ApiOther(OTHER_MESSAGES_HAR, null, new String[] {PARAM_BASE_URL, PARAM_START, PARAM_COUNT}));
 		this.addApiOthers(new ApiOther(
@@ -192,6 +239,7 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 		this.addApiShortcut(OTHER_PROXY_PAC);
 		// this.addApiShortcut(OTHER_ROOT_CERT);
 		this.addApiShortcut(OTHER_SET_PROXY);
+		this.addApiShortcut(OTHER_SCRIPT_JS);
 
 	}
 
@@ -206,7 +254,26 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 
 		Session session = Model.getSingleton().getSession();
 
-		if (ACTION_SHUTDOWN.equals(name)) {
+		if (ACTION_ACCESS_URL.equals(name)) {
+			URI uri;
+			try {
+				uri = new URI(params.getString(PARAM_URL), true);
+			} catch (URIException e) {
+				throw new ApiException(ApiException.Type.ILLEGAL_PARAMETER, PARAM_URL, e);
+			}
+			HttpMessage request;
+			try {
+				request = new HttpMessage(
+						new HttpRequestHeader(
+								HttpRequestHeader.GET,
+								uri,
+								HttpHeader.HTTP11,
+								Model.getSingleton().getOptionsParam().getConnectionParam()));
+			} catch (HttpMalformedHeaderException e) {
+				throw new ApiException(ApiException.Type.ILLEGAL_PARAMETER, PARAM_URL, e);
+			}
+			return sendHttpMessage(request, getParam(params, PARAM_FOLLOW_REDIRECTS, false), name);
+		} else if (ACTION_SHUTDOWN.equals(name)) {
 			Thread thread = new Thread() {
 				@Override
 				public void run() {
@@ -319,12 +386,11 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 				// Create a new 'unnamed' session
 				Control.getSingleton().discardSession();
 				try {
-					Control.getSingleton().createAndOpenUntitledDb();
+					Control.getSingleton().newSession();
 				} catch (Exception e) {
 					throw new ApiException(ApiException.Type.INTERNAL_ERROR,
 							e.getMessage());
 				}
-				Control.getSingleton().newSession();
 			} else {
 				Path sessionPath = SessionUtils.getSessionPath(sessionName);
 				String filename = sessionPath.toAbsolutePath().toString();
@@ -364,6 +430,17 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 			} else {
 				throw new ApiException(ApiException.Type.ILLEGAL_PARAMETER, PARAM_DIR);
 			}
+		} else if (ACTION_SET_MODE.equals(name)) {
+			try {
+				Mode mode = Mode.valueOf(params.getString(PARAM_MODE).toLowerCase());
+		    	if (View.isInitialised()) {
+	    			View.getSingleton().getMainFrame().getMainToolbarPanel().setMode(mode);
+		    	} else {
+	    			Control.getSingleton().setMode(mode);
+		    	}
+			} catch (Exception e) {
+				throw new ApiException(ApiException.Type.ILLEGAL_PARAMETER, PARAM_MODE);
+			}
 		} else if (ACTION_GENERATE_ROOT_CA.equals(name)) {
 			ExtensionDynSSL extDyn = (ExtensionDynSSL) 
 					Control.getSingleton().getExtensionLoader().getExtension(ExtensionDynSSL.EXTENSION_ID);
@@ -381,22 +458,8 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 			} catch (HttpMalformedHeaderException e) {
 				throw new ApiException(ApiException.Type.ILLEGAL_PARAMETER, PARAM_REQUEST, e);
 			}
-			boolean followRedirects = getParam(params, PARAM_FOLLOW_REDIRECTS, false);
-			final ApiResponseList resultList = new ApiResponseList(name);
-			try {
-				sendRequest(request, followRedirects, new Processor<HttpMessage>() {
-
-					@Override
-					public void process(HttpMessage msg) {
-						int id = msg.getHistoryRef() != null ? msg.getHistoryRef().getHistoryId() : -1;
-						resultList.addItem(ApiResponseConversionUtils.httpMessageToSet(id, msg));
-					}
-				});
-
-				return resultList;
-			} catch (Exception e) {
-				throw new ApiException(ApiException.Type.INTERNAL_ERROR, e.getMessage());
-			}
+			validateForCurrentMode(request);
+			return sendHttpMessage(request, getParam(params, PARAM_FOLLOW_REDIRECTS, false), name);
 		} else if (ACTION_DELETE_ALL_ALERTS.equals(name)) {
             final ExtensionAlert extAlert = (ExtensionAlert) Control.getSingleton()
                     .getExtensionLoader()
@@ -419,16 +482,97 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 			System.gc();
 			return ApiResponseElement.OK;
 			
-		} else if (ACTION_CLEAR_STATS.equals(name)) {
-			Stats.clear(this.getParam(params, PARAM_KEY_PREFIX, ""));
-			return ApiResponseElement.OK;
-			
+		} else if (ACTION_DELETE_SITE_NODE.equals(name)) {
+			try {
+				String url = params.getString(PARAM_URL);
+				String method = getParam(params, PARAM_METHOD, "GET");
+				String postData = getParam(params, PARAM_POST_DATA, "");
+				URI uri = new URI(url, true);
+				SiteMap siteMap = session.getSiteTree();
+				SiteNode siteNode = siteMap.findNode(uri, method, postData);
+				if(siteNode == null) {
+					throw new ApiException(ApiException.Type.DOES_NOT_EXIST, PARAM_URL);
+				}
+				if (getExtHistory() != null) {
+				    getExtHistory().purge(siteMap, siteNode);
+				}
+				return ApiResponseElement.OK;
+			} catch (URIException e) {
+				throw new ApiException(ApiException.Type.ILLEGAL_PARAMETER, PARAM_URL, e);
+			}
 		} else {
 			throw new ApiException(ApiException.Type.BAD_ACTION);
 		}
 		return ApiResponseElement.OK;
 	}
 
+	/**
+	 * Validates that the given request is valid for the current {@link Mode}.
+	 *
+	 * @param request the request that will be validated
+	 * @throws ApiException if the request is not valid for the current {@code Mode}.
+	 * @see #isValidForCurrentMode(URI)
+	 */
+	private static void validateForCurrentMode(HttpMessage request) throws ApiException {
+		if (!isValidForCurrentMode(request.getRequestHeader().getURI())) {
+			throw new ApiException(ApiException.Type.MODE_VIOLATION);
+		}
+	}
+
+	/**
+	 * Tells whether or not the given {@code uri} is valid for the current {@link Mode}.
+	 * <p>
+	 * The {@code uri} is not valid if the mode is {@code safe} or if in {@code protect} mode is not in scope.
+	 *
+	 * @param uri the {@code URI} that will be validated
+	 * @return {@code true} if the given {@code uri} is valid, {@code false} otherwise.
+	 */
+	private static boolean isValidForCurrentMode(URI uri) {
+		switch (Control.getSingleton().getMode()) {
+		case safe:
+			return false;
+		case protect:
+			return Model.getSingleton().getSession().isInScope(uri.toString());
+		default:
+			return true;
+		}
+	}
+
+	private ApiResponse sendHttpMessage(HttpMessage request, boolean followRedirects, String apiResponseName)
+			throws ApiException {
+		final ApiResponseList resultList = new ApiResponseList(apiResponseName);
+		try {
+			sendRequest(request, followRedirects, new Processor<HttpMessage>() {
+
+				@Override
+				public void process(HttpMessage msg) {
+					int id = -1;
+					int type = -1;
+					HistoryReference hRef = msg.getHistoryRef();
+					if (hRef != null) {
+						id = hRef.getHistoryId();
+						type = hRef.getHistoryType();
+					}
+					resultList.addItem(ApiResponseConversionUtils.httpMessageToSet(id, type, msg));
+				}
+			});
+
+			return resultList;
+		} catch (ApiException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new ApiException(ApiException.Type.INTERNAL_ERROR, e.getMessage());
+		}
+	}
+
+	private static ExtensionHistory getExtHistory() {
+	    if (extHistory == null) {
+	        extHistory = Control.getSingleton().getExtensionLoader().getExtension(ExtensionHistory.class);
+	    }
+	    return extHistory;
+    }
+
+	
 	private static HttpMessage createRequest(String request) throws HttpMalformedHeaderException {
 		HttpMessage requestMsg = new HttpMessage();
 		String[] parts = request.split(Pattern.quote(HttpHeader.CRLF + HttpHeader.CRLF), 2);
@@ -444,31 +588,22 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 	}
 
 	private static void sendRequest(HttpMessage request, boolean followRedirects, Processor<HttpMessage> processor)
-			throws IOException {
+			throws IOException, ApiException {
 		HttpSender sender = null;
 		try {
 			sender = createHttpSender();
-			sender.sendAndReceive(request);
-			persistMessage(request);
-			processor.process(request);
 
 			if (followRedirects) {
-				HttpMessage tempReq = request;
-				for (int i = 0; i < 10 && HttpStatusCode.isRedirection(tempReq.getResponseHeader().getStatusCode()); i++) {
-					tempReq = tempReq.cloneAll();
+				ModeRedirectionValidator redirector = new ModeRedirectionValidator(processor);
+				sender.sendAndReceive(request, redirector);
 
-					String location = tempReq.getResponseHeader().getHeader(HttpHeader.LOCATION);
-					URI baseUri = tempReq.getRequestHeader().getURI();
-					URI newLocation = new URI(baseUri, location, false);
-					tempReq.getRequestHeader().setURI(newLocation);
-
-					tempReq.getRequestHeader().setMethod(HttpRequestHeader.GET);
-					tempReq.getRequestHeader().setHeader(HttpHeader.CONTENT_LENGTH, null);
-
-					sender.sendAndReceive(tempReq);
-					persistMessage(tempReq);
-					processor.process(tempReq);
+				if (!redirector.isRequestValid()) {
+					throw new ApiException(ApiException.Type.MODE_VIOLATION);
 				}
+			} else {
+				sender.sendAndReceive(request, false);
+				persistMessage(request);
+				processor.process(request);
 			}
 		} finally {
 			if (sender != null) {
@@ -494,15 +629,12 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 			return;
 		}
 
-		final ExtensionHistory extHistory = (ExtensionHistory) Control.getSingleton()
-				.getExtensionLoader()
-				.getExtension(ExtensionHistory.NAME);
-		if (extHistory != null) {
+		if (getExtHistory() != null) {
 			EventQueue.invokeLater(new Runnable() {
 
 				@Override
 				public void run() {
-					extHistory.addHistory(historyRef);
+				    getExtHistory().addHistory(historyRef);
 					Model.getSingleton().getSession().getSiteTree().addPath(historyRef, message);
 				}
 			});
@@ -598,7 +730,8 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 			if (recordHistory == null || recordHistory.getHistoryType() == HistoryReference.TYPE_TEMPORARY) {
 				throw new ApiException(ApiException.Type.DOES_NOT_EXIST);
 			}
-			result = new ApiResponseElement(ApiResponseConversionUtils.httpMessageToSet(recordHistory.getHistoryId(), recordHistory.getHttpMessage()));
+			result = new ApiResponseElement(ApiResponseConversionUtils.httpMessageToSet(recordHistory.getHistoryId(),
+					recordHistory.getHistoryType(), recordHistory.getHttpMessage()));
 		} else if (VIEW_MESSAGES.equals(name)) {
 			final ApiResponseList resultList = new ApiResponseList(name);
 			processHttpMessages(
@@ -611,6 +744,7 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 						public void process(RecordHistory recordHistory) {
 							resultList.addItem(ApiResponseConversionUtils.httpMessageToSet(
 									recordHistory.getHistoryId(),
+									recordHistory.getHistoryType(),
 									recordHistory.getHttpMessage()));
 						}
 					});
@@ -624,6 +758,8 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 					counter);
 
 			result = new ApiResponseElement(name, Integer.toString(counter.getCount()));
+		} else if (VIEW_MODE.equals(name)) {
+			result = new ApiResponseElement(name, Control.getSingleton().getMode().name());
 		} else if (VIEW_VERSION.equals(name)) {
 			result = new ApiResponseElement(name, Constant.PROGRAM_VERSION);
 		} else if (VIEW_EXCLUDED_FROM_PROXY.equals(name)) {
@@ -634,13 +770,6 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 			}
 		} else if (VIEW_HOME_DIRECTORY.equals(name)) {
 			result = new ApiResponseElement(name, Model.getSingleton().getOptionsParam().getUserDirectory().getAbsolutePath());
-		} else if (VIEW_STATS.equals(name)) {
-			Map<String, String> map = new HashMap<>();
-
-			for (Entry<String, Long> stat : Stats.getStats(this.getParam(params, PARAM_KEY_PREFIX, "")).entrySet()) {
-				map.put(stat.getKey(), Long.toString(stat.getValue()));
-			}
-			result = new ApiResponseSet(name, map);
 
 		} else {
 			throw new ApiException(ApiException.Type.BAD_VIEW);
@@ -761,6 +890,15 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 				logger.error(e.getMessage(), e);
 				throw new ApiException(ApiException.Type.INTERNAL_ERROR);
 			}
+        } else if (OTHER_MD_REPORT.equals(name)) {
+            try {
+                writeReportLastScanTo(msg, ScanReportType.MD);
+
+                return msg;
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
+                throw new ApiException(ApiException.Type.INTERNAL_ERROR);
+            }
 		} else if (OTHER_MESSAGE_HAR.equals(name)) {
 			byte[] responseBody;
 			try {
@@ -839,31 +977,37 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 			} catch (IOException e) {
 				ApiException apiException = new ApiException(ApiException.Type.ILLEGAL_PARAMETER, PARAM_REQUEST, e);
 				responseBody = apiException.toString(API.Format.JSON, incErrorDetails()).getBytes(StandardCharsets.UTF_8);
-				
-				msg.setResponseBody(responseBody);
 			}
 
 			if (request != null) {
-				boolean followRedirects = getParam(params, PARAM_FOLLOW_REDIRECTS, false);
-				try {
-					final HarEntries entries = new HarEntries();
-					sendRequest(request, followRedirects, new Processor<HttpMessage>() {
-	
-						@Override
-						public void process(HttpMessage msg) {
-							entries.addEntry(HarUtils.createHarEntry(msg));
-						}
-					});
-	
-					HarLog harLog = HarUtils.createZapHarLog();
-					harLog.setEntries(entries);
-	
-					responseBody = HarUtils.harLogToByteArray(harLog);
-				} catch (Exception e) {
-					logger.error(e.getMessage(), e);
-	
-					ApiException apiException = new ApiException(ApiException.Type.INTERNAL_ERROR, e.getMessage());
+				if (!isValidForCurrentMode(request.getRequestHeader().getURI())) {
+					ApiException apiException = new ApiException(ApiException.Type.MODE_VIOLATION);
 					responseBody = apiException.toString(API.Format.JSON, incErrorDetails()).getBytes(StandardCharsets.UTF_8);
+				} else {
+					boolean followRedirects = getParam(params, PARAM_FOLLOW_REDIRECTS, false);
+					try {
+						final HarEntries entries = new HarEntries();
+						sendRequest(request, followRedirects, new Processor<HttpMessage>() {
+
+							@Override
+							public void process(HttpMessage msg) {
+								entries.addEntry(HarUtils.createHarEntry(msg));
+							}
+						});
+
+						HarLog harLog = HarUtils.createZapHarLog();
+						harLog.setEntries(entries);
+
+						responseBody = HarUtils.harLogToByteArray(harLog);
+					} catch(ApiException e) {
+						responseBody = e.toString(API.Format.JSON, incErrorDetails()).getBytes(StandardCharsets.UTF_8);
+					} catch (Exception e) {
+						logger.error(e.getMessage(), e);
+
+						ApiException apiException = new ApiException(ApiException.Type.INTERNAL_ERROR, e.getMessage());
+						responseBody = apiException.toString(API.Format.JSON, incErrorDetails())
+								.getBytes(StandardCharsets.UTF_8);
+					}
 				}
 			}
 
@@ -875,6 +1019,17 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 			msg.setResponseBody(responseBody);
 			
 			return msg;
+		} else if (OTHER_SCRIPT_JS.equals(name)) {
+			try {
+		    	msg.setResponseBody(API_SCRIPT);
+				// Allow caching
+				msg.setResponseHeader(API.getDefaultResponseHeader("text/javascript", API_SCRIPT.length(), true));
+				msg.getResponseHeader().addHeader(HttpResponseHeader.CACHE_CONTROL, API_SCRIPT_CACHE_CONTROL);
+			} catch (HttpMalformedHeaderException e) {
+				logger.error("Failed to create response header: " + e.getMessage(), e);
+			}
+	    	
+	    	return msg;
 		} else {
 			throw new ApiException(ApiException.Type.BAD_OTHER);
 		}
@@ -894,6 +1049,11 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 			// Copy as is
 			msg.setResponseHeader(API.getDefaultResponseHeader("text/xml; charset=UTF-8"));
 			response = report.toString();
+		} else if (ScanReportType.MD == reportType) {
+            msg.setResponseHeader(API.getDefaultResponseHeader("text/markdown; charset=UTF-8"));
+            response = ReportGenerator.stringToHtml(
+                    report.toString(),
+                    Paths.get(Constant.getZapInstall(), "xml/report.md.xsl").toString());
 		} else {
 			msg.setResponseHeader(API.getDefaultResponseHeader("text/html; charset=UTF-8"));
 			response = ReportGenerator.stringToHtml(
@@ -914,6 +1074,8 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 				JSONObject params = new JSONObject();
 				params.put(PARAM_PROXY_DETAILS, msg.getRequestBody());
 				return this.handleApiOther(msg, OTHER_SET_PROXY, params);
+			} else if (msg.getRequestHeader().getURI().getPath().startsWith("/" + OTHER_SCRIPT_JS)) {
+				return this.handleApiOther(msg, OTHER_SCRIPT_JS, null);
 			}
 		} catch (URIException e) {
 			logger.error(e.getMessage(), e);
@@ -953,11 +1115,14 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 	private ApiResponseSet alertToSet(Alert alert) {
 		Map<String, String> map = new HashMap<>();
 		map.put("id", String.valueOf(alert.getAlertId()));
-		map.put("alert", alert.getAlert());
+		map.put("pluginId", String.valueOf(alert.getPluginId()));
+		map.put("alert", alert.getName()); //Deprecated in 2.5.0, maintain for compatibility with custom code
+		map.put("name", alert.getName());
 		map.put("description", alert.getDescription());
 		map.put("risk", Alert.MSG_RISK[alert.getRisk()]);
 		map.put("confidence", Alert.MSG_CONFIDENCE[alert.getConfidence()]);
 		map.put("url", alert.getUri());
+		map.put("method", alert.getMethod());
 		map.put("other", alert.getOtherInfo());
 		map.put("param", alert.getParam());
 		map.put("attack", alert.getAttack());
@@ -965,6 +1130,7 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 		map.put("reference", alert.getReference());
 		map.put("cweid", String.valueOf(alert.getCweId()));
 		map.put("wascid", String.valueOf(alert.getWascId()));
+		map.put("sourceid", String.valueOf(alert.getSource().getId()));
 		map.put("solution", alert.getSolution());
 		if (alert.getHistoryRef() != null) {
 			map.put("messageId", String.valueOf(alert.getHistoryRef().getHistoryId()));
@@ -1141,4 +1307,39 @@ public class CoreAPI extends ApiImplementor implements SessionListener {
 		}
 	}
 
+	/**
+	 * A {@code RedirectionValidator} that enforces the {@link Mode} when validating the {@code URI} of redirections.
+	 *
+	 * @see #isRequestValid()
+	 */
+	private static class ModeRedirectionValidator implements HttpSender.RedirectionValidator {
+
+		private final Processor<HttpMessage> processor;
+		private boolean isRequestValid;
+
+		public ModeRedirectionValidator(Processor<HttpMessage> processor) {
+			this.processor = processor;
+		}
+
+		@Override
+		public void notifyMessageReceived(HttpMessage message) {
+			persistMessage(message);
+			processor.process(message);
+		}
+
+		@Override
+		public boolean isValid(URI redirection) {
+			isRequestValid = isValidForCurrentMode(redirection);
+			return isRequestValid;
+		}
+
+		/**
+		 * Tells whether or not the request is valid, that is, all redirections were valid for the current {@link Mode}.
+		 *
+		 * @return {@code true} is the request is valid, {@code false} otherwise.
+		 */
+		public boolean isRequestValid() {
+			return isRequestValid;
+		}
+	}
 }

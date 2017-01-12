@@ -49,6 +49,7 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.HierarchicalConfiguration;
 import org.apache.log4j.Logger;
 import org.parosproxy.paros.Constant;
+import org.parosproxy.paros.control.Control;
 import org.parosproxy.paros.core.scanner.AbstractPlugin;
 import org.parosproxy.paros.extension.Extension;
 import org.parosproxy.paros.model.Model;
@@ -249,7 +250,7 @@ public class AddOnLoader extends URLClassLoader {
 
             List<String> idsAddOnDependencies = ao.getIdsAddOnDependencies();
             if (idsAddOnDependencies.isEmpty()) {
-                addOnClassLoader = new AddOnClassLoader(ao.getFile().toURI().toURL(), this);
+                addOnClassLoader = new AddOnClassLoader(ao.getFile().toURI().toURL(), this, ao.getAddOnClassnames());
                 this.addOnLoaders.put(ao.getId(), addOnClassLoader);
                 return addOnClassLoader;
             }
@@ -263,7 +264,7 @@ public class AddOnLoader extends URLClassLoader {
                 dependencies.add(addOnClassLoader);
             }
 
-            addOnClassLoader = new AddOnClassLoader(ao.getFile().toURI().toURL(), this, dependencies);
+            addOnClassLoader = new AddOnClassLoader(ao.getFile().toURI().toURL(), this, dependencies, ao.getAddOnClassnames());
             this.addOnLoaders.put(ao.getId(), addOnClassLoader);
             return addOnClassLoader;
         } catch (MalformedURLException e) {
@@ -367,6 +368,7 @@ public class AddOnLoader extends URLClassLoader {
 
 		AddOnInstaller.install(createAndAddAddOnClassLoader(ao), ao);
 		ao.setInstallationStatus(AddOn.InstallationStatus.INSTALLED);
+		Control.getSingleton().getExtensionLoader().addOnInstalled(ao);
 
         if (runnableAddOns.get(ao) == null) {
             runnableAddOns.put(ao, getRunnableExtensionsWithDeps(reqs));
@@ -436,7 +438,10 @@ public class AddOnLoader extends URLClassLoader {
                         for (AddOn addOnDep : extReqs.getDependencies()) {
                             dependencies.add(addOnLoaders.get(addOnDep.getId()));
                         }
-                        AddOnClassLoader extAddOnClassLoader = new AddOnClassLoader(entry.getValue(), dependencies);
+                        AddOnClassLoader extAddOnClassLoader = new AddOnClassLoader(
+                                entry.getValue(),
+                                dependencies,
+                                runningAddOn.getExtensionAddOnClassnames(extClassName));
                         Extension ext = loadAddOnExtension(runningAddOn, extReqs.getClassname(), extAddOnClassLoader);
                         AddOnInstaller.installAddOnExtension(runningAddOn, ext);
                         runnableAddOns.get(runningAddOn).add(extReqs.getClassname());
@@ -488,6 +493,7 @@ public class AddOnLoader extends URLClassLoader {
 			removeAddOnClassLoader(ao);
 			deleteAddOnFile(ao, upgrading);
 			ao.setInstallationStatus(AddOn.InstallationStatus.UNINSTALLATION_FAILED);
+			Control.getSingleton().getExtensionLoader().addOnUninstalled(ao, false);
 			return false;
 		}
 
@@ -529,6 +535,7 @@ public class AddOnLoader extends URLClassLoader {
 				? AddOn.InstallationStatus.AVAILABLE
 				: AddOn.InstallationStatus.UNINSTALLATION_FAILED);
 
+		Control.getSingleton().getExtensionLoader().addOnUninstalled(ao, uninstalledWithoutErrors);
 		return uninstalledWithoutErrors;
 	}
 	
@@ -607,6 +614,9 @@ public class AddOnLoader extends URLClassLoader {
         }
 
         addOn.setInstallationStatus(status);
+        Control.getSingleton()
+                .getExtensionLoader()
+                .addOnSoftUninstalled(addOn, status == AddOn.InstallationStatus.NOT_INSTALLED);
     }
 
 	private void loadBlockList() {
@@ -633,7 +643,8 @@ public class AddOnLoader extends URLClassLoader {
 	/**
 	 * Returns all the {@code Extension}s of all the installed add-ons.
 	 * <p>
-	 * The discovery of {@code Extension}s is done by resorting to the {@code ZapAddOn.xml} file bundled in the add-ons.
+	 * The discovery of {@code Extension}s is done by resorting to the {@link AddOn#MANIFEST_FILE_NAME manifest file} bundled in
+	 * the add-ons.
 	 * <p>
 	 * Extensions with unfulfilled dependencies are not be returned.
 	 *
@@ -654,7 +665,8 @@ public class AddOnLoader extends URLClassLoader {
     /**
      * Returns all {@code Extension}s of the given {@code addOn}.
      * <p>
-     * The discovery of {@code Extension}s is done by resorting to {@code ZapAddOn.xml} file bundled in the add-on.
+     * The discovery of {@code Extension}s is done by resorting to {@link AddOn#MANIFEST_FILE_NAME manifest file} bundled in the
+     * add-on.
      * <p>
      * Extensions with unfulfilled dependencies are not be returned.
      * <p>
@@ -683,7 +695,10 @@ public class AddOnLoader extends URLClassLoader {
                     for (AddOn addOnDep : extReqs.getDependencies()) {
                         dependencies.add(addOnLoaders.get(addOnDep.getId()));
                     }
-                    AddOnClassLoader extAddOnClassLoader = new AddOnClassLoader(addOnClassLoader, dependencies);
+                    AddOnClassLoader extAddOnClassLoader = new AddOnClassLoader(
+                            addOnClassLoader,
+                            dependencies,
+                            addOn.getExtensionAddOnClassnames(extReqs.getClassname()));
                     Extension ext = loadAddOnExtension(addOn, extReqs.getClassname(), extAddOnClassLoader);
                     if (ext != null) {
                         extensions.add(ext);
@@ -724,7 +739,8 @@ public class AddOnLoader extends URLClassLoader {
 	/**
 	 * Gets the active scan rules of all the loaded add-ons.
 	 * <p>
-	 * The discovery of active scan rules is done by resorting to {@code ZapAddOn.xml} file bundled in the add-ons.
+	 * The discovery of active scan rules is done by resorting to  {@link AddOn#MANIFEST_FILE_NAME manifest file} bundled in the
+	 * add-ons.
 	 *
 	 * @return an unmodifiable {@code List} with all the active scan rules, never {@code null}
 	 * @since 2.4.0
@@ -745,7 +761,8 @@ public class AddOnLoader extends URLClassLoader {
 	/**
 	 * Gets the passive scan rules of all the loaded add-ons.
 	 * <p>
-	 * The discovery of passive scan rules is done by resorting to {@code ZapAddOn.xml} file bundled in the add-ons.
+	 * The discovery of passive scan rules is done by resorting to {@link AddOn#MANIFEST_FILE_NAME manifest file} bundled in the
+	 * add-ons.
 	 *
 	 * @return an unmodifiable {@code List} with all the passive scan rules, never {@code null}
 	 * @since 2.4.0
@@ -792,15 +809,17 @@ public class AddOnLoader extends URLClassLoader {
                 }
             } catch (Throwable e) {
             	// Often not an error
-            	logger.debug(e.getMessage());
+            	logger.debug(e.getMessage(), e);
             }
         }
         return listClass;
 	}
 
     /**
-     * Check local jar (paros.jar) or related package if any target file is found.
-     *
+     * Check local jar (zap.jar) or related package if any target file is found.
+     * 
+     * @param packageName the package name that the class must belong too
+     * @return a {@code List} with all the classes belonging to the given package
      */
     private List<ClassNameWrapper> getLocalClassNames (String packageName) {
     
