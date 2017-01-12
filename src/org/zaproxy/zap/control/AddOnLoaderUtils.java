@@ -32,7 +32,7 @@ import org.zaproxy.zap.extension.pscan.PluginPassiveScanner;
 /**
  * A class with utility methods to help with add-on loading and (un)installation.
  *
- * @since 2.4.3
+ * @since TODO add version
  */
 final class AddOnLoaderUtils {
 
@@ -112,7 +112,7 @@ final class AddOnLoaderUtils {
             T instance = c.newInstance();
             return instance;
         } catch (Exception e) {
-            LOGGER.debug(e.getMessage(), e);
+            LOGGER.debug(e.getMessage());
         }
         return null;
     }

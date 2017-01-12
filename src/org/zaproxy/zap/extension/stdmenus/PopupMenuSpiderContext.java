@@ -31,10 +31,7 @@ import org.zaproxy.zap.view.popup.PopupMenuItemContext;
 
 /**
  * The Class PopupMenuSpiderContext.
- * 
- * @deprecated (TODO add version) Superseded by {@link PopupMenuSpiderDialog}.
  */
-@Deprecated
 public class PopupMenuSpiderContext extends PopupContextMenuItemHolder {
 
 	/** The Constant serialVersionUID. */

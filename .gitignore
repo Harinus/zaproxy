@@ -6,10 +6,5 @@
 out/
 /build/nbproject/private/
 /build/build/
-/build/buildtest/
 /build/dist/
-/build/results/
 /bin/
-
-# Node
-node_modules/

@@ -26,7 +26,6 @@ import org.zaproxy.zap.extension.anticsrf.AntiCsrfAPI;
 import org.zaproxy.zap.extension.anticsrf.AntiCsrfParam;
 import org.zaproxy.zap.extension.ascan.ActiveScanAPI;
 import org.zaproxy.zap.extension.authentication.AuthenticationAPI;
-import org.zaproxy.zap.extension.authorization.AuthorizationAPI;
 import org.zaproxy.zap.extension.autoupdate.AutoUpdateAPI;
 import org.zaproxy.zap.extension.autoupdate.OptionsParamCheckForUpdates;
 import org.zaproxy.zap.extension.brk.BreakAPI;
@@ -38,8 +37,6 @@ import org.zaproxy.zap.extension.script.ScriptAPI;
 import org.zaproxy.zap.extension.search.SearchAPI;
 import org.zaproxy.zap.extension.sessions.SessionManagementAPI;
 import org.zaproxy.zap.extension.spider.SpiderAPI;
-import org.zaproxy.zap.extension.stats.StatsAPI;
-import org.zaproxy.zap.extension.stats.StatsParam;
 import org.zaproxy.zap.extension.users.UsersAPI;
 import org.zaproxy.zap.spider.SpiderParam;
 
@@ -93,8 +90,6 @@ public class ApiGeneratorUtils {
 		
 		imps.add(new AuthenticationAPI(null));
 		
-		imps.add(new AuthorizationAPI());
-
 		imps.add(new SessionManagementAPI(null));
 		
 		imps.add(new UsersAPI(null));
@@ -102,10 +97,6 @@ public class ApiGeneratorUtils {
 		imps.add(new ForcedUserAPI(null));
 
 		imps.add(new ScriptAPI(null));
-
-		api = new StatsAPI(null);
-		api.addApiOptions(new StatsParam());
-		imps.add(api);
 
 		return imps;
 	}

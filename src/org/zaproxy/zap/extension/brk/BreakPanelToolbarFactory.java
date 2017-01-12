@@ -1,22 +1,3 @@
-/*
- * Zed Attack Proxy (ZAP) and its related class files.
- * 
- * ZAP is an HTTP/HTTPS proxy for assessing web application security.
- * 
- * Copyright 2016 ZAP development team
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); 
- * you may not use this file except in compliance with the License. 
- * You may obtain a copy of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, 
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
- * See the License for the specific language governing permissions and 
- * limitations under the License. 
- */
 package org.zaproxy.zap.extension.brk;
 
 import java.awt.event.ActionEvent;
@@ -60,7 +41,7 @@ public class BreakPanelToolbarFactory {
 	private boolean cont = false;
 	private boolean step = false;
 	private boolean stepping = false;
-	private boolean drop = false;
+	private boolean toBeDropped = false;
 	private boolean isBreakRequest = false;
 	private boolean isBreakResponse = false;
 	private boolean isBreakAll = false;
@@ -269,9 +250,6 @@ public class BreakPanelToolbarFactory {
 			resetRequestSerialization(false);
 			return false;
 		}
-		if (drop) {
-			return false;
-		}
 		return true;
 	}
 
@@ -296,47 +274,54 @@ public class BreakPanelToolbarFactory {
 		breakAllButtonAction.setEnabled(enabled);
 	}
 
-	private void setButtonsAndIconState(boolean enabled) {
-		stepButtonAction.setEnabled(enabled);
-		continueButtonAction.setEnabled(enabled);
-		dropButtonAction.setEnabled(enabled);
-		if (!enabled) {
-			this.setActiveIcon(false);
-		}
-	}
 	
 	protected void setContinue(boolean isContinue) {
 		this.cont = isContinue;
-		setButtonsAndIconState( ! isContinue);
+
+		stepButtonAction.setEnabled( ! isContinue);
+
+		continueButtonAction.setEnabled( ! isContinue);
+
+		dropButtonAction.setEnabled( ! isContinue);
+
+		if (isContinue) {
+			this.setActiveIcon(false);
+		}
 	}
 
 	protected void setStep(boolean isStep) {
 		step = isStep;
-		setButtonsAndIconState( ! isStep);
+
+		stepButtonAction.setEnabled( ! isStep);
+
+		continueButtonAction.setEnabled( ! isStep);
+
+		dropButtonAction.setEnabled( ! isStep);
+
+		if (isStep) {
+			this.setActiveIcon(false);
+		}
 	}
 	
-	protected void setDrop(boolean isDrop) {
-		if (isDrop && breakpointsParams.isConfirmDropMessage() && 
-				askForDropConfirmation() != JOptionPane.OK_OPTION) {
-			return;
-		}
-		drop = isDrop;
-		setButtonsAndIconState( ! isDrop);
+	protected void drop() {
+        if (breakpointsParams.isConfirmDropMessage() && askForDropConfirmation() != JOptionPane.OK_OPTION) {
+            return;
+        }
+        toBeDropped = true;
+        setContinue(true);
 	}
 
 	public boolean isToBeDropped() {
-		if (drop) {
-			drop = false;
-			return true;
-		}
-		return false;
+		boolean drop = toBeDropped;
+		toBeDropped = false;
+		return drop;
 	}
 
 	public void init() {
 		cont = false;
 		step = false;
 		stepping = false;
-		drop = false;
+		toBeDropped = false;
 		isBreakRequest = false;
 		isBreakResponse = false;
 		isBreakAll = false;
@@ -355,43 +340,11 @@ public class BreakPanelToolbarFactory {
 			toggleBreakAll();
 		}
 
+		toBeDropped = true;
 		setContinue(true);
 	}
 	
-	/**
-	 * Sets the current button mode.
-	 * <p>
-	 * If the mode is already set no change is done, otherwise it does the following:
-	 * <ul>
-	 * <li>When changing from {@link BreakpointsParam#BUTTON_MODE_SIMPLE BUTTON_MODE_SIMPLE} to
-	 * {@link BreakpointsParam#BUTTON_MODE_DUAL BUTTON_MODE_DUAL} set "break on request" and "on response" enabled and
-	 * "break on all" disabled, if "break on all" is enabled;</li>
-	 * <li>When changing from {@code BUTTON_MODE_DUAL} to {@code BUTTON_MODE_SIMPLE} set "break on all" enabled and "break on
-	 * request" and "on response" disabled, if at least one of "break on request" and "on response" is enabled;</li>
-	 * <li>If none of the "break on ..." states is enabled there's no changes in its states.</li>
-	 * </ul>
-	 * The enabled state of previous mode is disabled to prevent interferences between the modes.
-	 *
-	 * @param mode the mode to be set
-	 * @see #isBreakAll()
-	 * @see #isBreakRequest()
-	 * @see #isBreakResponse()
-	 */
 	public void setButtonMode (int mode) {
-		if (this.mode == mode) {
-			return;
-		}
-		if (this.mode == BreakpointsParam.BUTTON_MODE_SIMPLE) {
-			if (isBreakAll) {
-				setBreakAll(false);
-				setBreakRequest(true);
-				setBreakResponse(true);
-			}
-		} else if (isBreakRequest || isBreakResponse) {
-			setBreakRequest(false);
-			setBreakResponse(false);
-			setBreakAll(true);
-		}
 		this.mode = mode;
 	}
 
@@ -451,7 +404,7 @@ public class BreakPanelToolbarFactory {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            setDrop(true);
+            drop();
         }
     }
 

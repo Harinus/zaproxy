@@ -22,7 +22,6 @@
 // ZAP: 2012/07/29 Issue 43: added sessionScopeChanged event
 // ZAP: 2012/08/01 Issue 332: added support for Modes
 // ZAP: 2013/03/03 Issue 546: Remove all template Javadoc comments
-// ZAP: 2016/09/22 JavaDoc tweaks
 
 package org.parosproxy.paros.extension;
 
@@ -34,16 +33,16 @@ public interface SessionChangedListener {
      * Called just after the session has changed.
      * sessionChanged may be called by non-event thread.  Should handle with care in
      * all the listener.  Use EventThread for each GUI event.
-     * @param session the new session
+     * @param session
      */
     void sessionChanged(Session session);
     
     /**
      * Called just prior to the session changing.
-     * Listeners should close down any resources associated with this session. 
+     * Listeners should close down any resources associaited with this session. 
      * sessionAboutToChange may be called by non-event thread.  Should handle with care in
      * all the listener.  Use EventThread for each GUI event.
-     * @param session the session about to be closed
+     * @param session
      */
     void sessionAboutToChange(Session session);
     
@@ -51,7 +50,7 @@ public interface SessionChangedListener {
      * Called when the user has changes the session scope.
      * sessionScopeChanged may be called by non-event thread.  Should handle with care in
      * all the listener.  Use EventThread for each GUI event.
-     * @param session the current session
+     * @param session
      */
     void sessionScopeChanged(Session session);
     
@@ -59,7 +58,7 @@ public interface SessionChangedListener {
      * Called when the user changes the mode.
      * sessionModeChanged may be called by non-event thread.  Should handle with care in
      * all the listener.  Use EventThread for each GUI event.
-     * @param mode the new mode
+     * @param mode
      */
     void sessionModeChanged(Mode mode);
     

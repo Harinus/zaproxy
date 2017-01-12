@@ -39,38 +39,11 @@ public class PassiveScanThread extends Thread implements ProxyListener, SessionC
 	
 	private final ExtensionHistory extHist;
 	private final ExtensionAlert extAlert;
-	private final PassiveScanParam pscanOptions;
 
 	private TableHistory historyTable = null;
 	private HistoryReference href = null;
-	private Session session;
 
-	/**
-	 * Constructs a {@code PassiveScanThread} with the given data.
-	 *
-	 * @param passiveScannerList the passive scanners, must not be {@code null}.
-	 * @param extHist the extension to obtain the (cached) history references, might be {@code null}.
-	 * @param extensionAlert the extension used to raise the alerts, must not be {@code null}.
-	 * @deprecated (TODO add version) Use
-	 *             {@link #PassiveScanThread(PassiveScannerList, ExtensionHistory, ExtensionAlert, PassiveScanParam)} instead.
-	 *             It will be removed in a future release.
-	 */
-	@Deprecated
-	public PassiveScanThread(PassiveScannerList passiveScannerList, ExtensionHistory extHist, ExtensionAlert extensionAlert) {
-		this(passiveScannerList, extHist, extensionAlert, new PassiveScanParam());
-	}
-
-	/**
-	 * Constructs a {@code PassiveScanThread} with the given data.
-	 *
-	 * @param passiveScannerList the passive scanners, must not be {@code null}.
-	 * @param extHist the extension to obtain the (cached) history references, might be {@code null}.
-	 * @param extensionAlert the extension used to raise the alerts, must not be {@code null}.
-	 * @param pscanOptions the passive scanner options, must not be {@code null}.
-	 * @since TODO add version
-	 */
-	public PassiveScanThread (PassiveScannerList passiveScannerList, ExtensionHistory extHist, ExtensionAlert extensionAlert,
-			PassiveScanParam pscanOptions) {
+	public PassiveScanThread (PassiveScannerList passiveScannerList, ExtensionHistory extHist, ExtensionAlert extensionAlert) {
 		super("ZAP-PassiveScanner");
 		this.setDaemon(true);
 		
@@ -87,13 +60,11 @@ public class PassiveScanThread extends Thread implements ProxyListener, SessionC
 
 		extAlert = extensionAlert;
 		this.extHist = extHist;
-		this.pscanOptions = pscanOptions;
 	}
 	
 	@Override
 	public void run() {
 		historyTable = Model.getSingleton().getDb().getTableHistory();
-		session = Model.getSingleton().getSession();
 		// Get the last id - in case we've just opened an existing session
 		currentId = this.getLastHistoryId();
 		lastId = currentId;
@@ -129,8 +100,13 @@ public class PassiveScanThread extends Thread implements ProxyListener, SessionC
 					logger.error("Failed to read record " + currentId + " from History table", e);
 				}
 
-				if (href != null && (!pscanOptions.isScanOnlyInScope() || session.isInScope(href))) {
+				if (href != null && 
+						(href.getHistoryType() == HistoryReference.TYPE_PROXIED ||
+						href.getHistoryType() == HistoryReference.TYPE_ZAP_USER ||
+						href.getHistoryType() == HistoryReference.TYPE_SPIDER ||
+						href.getHistoryType() == HistoryReference.TYPE_SPIDER_AJAX)) {
 					try {
+						// Note that scanning TYPE_SCANNER records will result in a loop ;)
 						// Parse the record
 						HttpMessage msg = href.getHttpMessage();
 						String response = msg.getResponseHeader().toString() + msg.getResponseBody().toString();
@@ -141,7 +117,7 @@ public class PassiveScanThread extends Thread implements ProxyListener, SessionC
 								if (shutDown) {
 									return;
 								}
-								if (scanner.isEnabled() && scanner.appliesToHistoryType(href.getHistoryType())) {
+								if (scanner.isEnabled()) {
 									scanner.setParent(this);
 									scanner.scanHttpRequestSend(msg, href.getHistoryId());
 									if (msg.isResponseFromTargetHost()) {
@@ -207,8 +183,14 @@ public class PassiveScanThread extends Thread implements ProxyListener, SessionC
 		if (currentId != id) {
 			logger.error("Alert id != currentId! " + id + " " + currentId);
 		}
-
-		alert.setSource(Alert.Source.PASSIVE);
+		alert.setSourceHistoryId(href.getHistoryId());
+		
+		try {
+			href.addAlert(alert);
+			notifyHistoryItemChanged(href);
+		} catch (Exception e) {
+			logger.error(e.getMessage(), e);
+		}
 	    // Raise the alert
 		extAlert.alertFound(alert, href);
 

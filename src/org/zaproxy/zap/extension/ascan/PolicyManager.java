@@ -54,13 +54,10 @@ public class PolicyManager {
 	public synchronized List<String> getAllPolicyNames() {
 		if (allPolicyNames == null) {
 			allPolicyNames = new ArrayList<String>();
-			String[] files = Constant.getPoliciesDir().list();
-			if (files != null) {
-				for (String file : files) {
-					if (file.endsWith(POLICY_EXTENSION)) {
-						logger.debug("Found policy file " + file);
-						allPolicyNames.add(file.substring(0, file.lastIndexOf(POLICY_EXTENSION)));
-					}
+			for (String file : Constant.getPoliciesDir().list()) {
+				if (file.endsWith(POLICY_EXTENSION)) {
+					logger.debug("Found policy file " + file);
+					allPolicyNames.add(file.substring(0, file.lastIndexOf(POLICY_EXTENSION)));
 				}
 			}
 			if (allPolicyNames.size() == 0) {
@@ -114,7 +111,7 @@ public class PolicyManager {
 	 *
 	 * @param name the name of the scan policy
 	 * @return {@code true} if the scan policy exists, {@code false} otherwise
-	 * @since 2.4.3
+	 * @since TODO add version
 	 */
 	public static boolean policyExists(String name) {
 		return (new File(Constant.getPoliciesDir(), name + POLICY_EXTENSION)).exists();
@@ -130,19 +127,10 @@ public class PolicyManager {
 	}
 	
 	private ScanPolicy loadPolicy (File file) throws ConfigurationException {
-		File policyFile;
-		try {
-			// Obtain the name of the file in correct case, for DEFAULT_POLICY_NAME it might not be exactly the same if the file
-			// system is case insensitive, thus not matching with the name read directly from the file system (method
-			// getAllPolicyNames()).
-			policyFile = file.toPath().toRealPath().toFile();
-		} catch (IOException e) {
-			throw new ConfigurationException("Failed to obtain the real path of the policy file:", e);
-		}
-		ScanPolicy policy = new ScanPolicy(new ZapXmlConfiguration(policyFile));
-		if (! policyFile.getName().equals(policy.getName() + POLICY_EXTENSION)) {
+		ScanPolicy policy = new ScanPolicy(new ZapXmlConfiguration(file));
+		if (! file.getName().equals(policy.getName() + POLICY_EXTENSION)) {
 			// The file name takes precedence in case theres another policy with the same name
-			policy.setName(policyFile.getName().substring(0, policyFile.getName().indexOf(POLICY_EXTENSION)));
+			policy.setName(file.getName().substring(0, file.getName().indexOf(POLICY_EXTENSION)));
 		}
 		
 		return policy;
@@ -194,13 +182,13 @@ public class PolicyManager {
 	public ScanPolicy getDefaultScanPolicy() {
 		try {
 			String policyName = extension.getScannerParam().getDefaultPolicy();
-			if (policyExists(policyName)) {
+			if (this.policyExists(policyName)) {
 				logger.debug("getDefaultScanPolicy: " + policyName);
 				return this.loadPolicy(policyName);
 			}
 			// No good, try the default name
 			policyName = DEFAULT_POLICY_NAME;
-			if (policyExists(policyName)) {
+			if (this.policyExists(policyName)) {
 				logger.debug("getDefaultScanPolicy (default name): " + policyName);
 				return this.loadPolicy(policyName);
 			}
@@ -221,12 +209,12 @@ public class PolicyManager {
 	public ScanPolicy getAttackScanPolicy() {
 		try {
 			String policyName = extension.getScannerParam().getAttackPolicy();
-			if (policyExists(policyName)) {
+			if (this.policyExists(policyName)) {
 				return this.loadPolicy(policyName);
 			}
 			// No good, try the default name
 			policyName = DEFAULT_POLICY_NAME;
-			if (policyExists(policyName)) {
+			if (this.policyExists(policyName)) {
 				return this.loadPolicy(policyName);
 			}
 			if (this.allPolicyNames.size() > 0) {

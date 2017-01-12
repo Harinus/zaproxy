@@ -26,7 +26,6 @@ var Acsrf = require('./acsrf');
 var AjaxSpider = require('./ajaxSpider');
 var Ascan = require('./ascan');
 var Authentication = require('./authentication');
-var Authorization = require('./authorization');
 var Autoupdate = require('./autoupdate');
 var Brk = require('./brk');
 var Context = require('./context');
@@ -41,7 +40,6 @@ var Script = require('./script');
 var Search = require('./search');
 var SessionManagement = require('./sessionManagement');
 var Spider = require('./spider');
-var Stats = require('./stats');
 var Users = require('./users');
 
 // base JSON api url
@@ -66,7 +64,6 @@ function ClientApi(options) {
   this.ajaxSpider = new AjaxSpider(this);
   this.ascan = new Ascan(this);
   this.authentication = new Authentication(this);
-  this.authorization = new Authorization(this);
   this.autoupdate = new Autoupdate(this);
   this.brk = new Brk(this);
   this.context = new Context(this);
@@ -81,7 +78,6 @@ function ClientApi(options) {
   this.search = new Search(this);
   this.sessionManagement = new SessionManagement(this);
   this.spider = new Spider(this);
-  this.stats = new Stats(this);
   this.users = new Users(this);
 }
 

@@ -31,8 +31,6 @@ import org.zaproxy.zap.model.ScanController;
 import org.zaproxy.zap.model.Target;
 import org.zaproxy.zap.spider.SpiderParam;
 import org.zaproxy.zap.spider.filters.FetchFilter;
-import org.zaproxy.zap.spider.filters.MaxChildrenFetchFilter;
-import org.zaproxy.zap.spider.filters.MaxChildrenParseFilter;
 import org.zaproxy.zap.spider.filters.ParseFilter;
 import org.zaproxy.zap.spider.parser.SpiderParser;
 import org.zaproxy.zap.users.User;
@@ -48,6 +46,7 @@ public class SpiderScanController implements ScanController<SpiderScan> {
 	 * 
 	 * @see #spiderScanMap
 	 * @see #scanIdCounter
+	 * @see #lastSpiderScanAvailable
 	 */
 	private final Lock spiderScansLock;
 
@@ -59,7 +58,7 @@ public class SpiderScanController implements ScanController<SpiderScan> {
 	 * </p>
 	 * 
 	 * @see #spiderScansLock
-	 * @see #startScan(String, Target, User, Object[])
+	 * @see #scanURL(String, boolean, boolean)
 	 */
 	private int scanIdCounter;
 
@@ -73,7 +72,7 @@ public class SpiderScanController implements ScanController<SpiderScan> {
 	 * </p>
 	 * 
 	 * @see #spiderScansLock
-	 * @see #startScan(String, Target, User, Object[])
+	 * @see #scanURL(String, boolean, boolean)
 	 * @see #scanIdCounter
 	 */
 	private Map<Integer, SpiderScan> spiderScanMap;
@@ -121,22 +120,9 @@ public class SpiderScanController implements ScanController<SpiderScan> {
 					}
 				}
 			}
-
-			if (spiderParams.getMaxChildren() > 0) {
-				// Add the filters to filter on maximum number of children
-				MaxChildrenFetchFilter maxChildrenFetchFilter = new MaxChildrenFetchFilter();
-				maxChildrenFetchFilter.setMaxChildren(spiderParams.getMaxChildren());
-				maxChildrenFetchFilter.setModel(extension.getModel());
-
-				MaxChildrenParseFilter maxChildrenParseFilter = new MaxChildrenParseFilter();
-				maxChildrenParseFilter.setMaxChildren(spiderParams.getMaxChildren());
-				maxChildrenParseFilter.setModel(extension.getModel());
-
-				customFetchFilters.add(maxChildrenFetchFilter);
-				customParseFilters.add(maxChildrenParseFilter);
-			}
 			
-			SpiderScan scan = new SpiderScan(extension, spiderParams, target, startUri, user, id, name);
+			SpiderScan scan = new SpiderScan(extension, spiderParams, target, startUri, user, id);
+			scan.setDisplayName(name);
 			scan.setCustomSpiderParsers(customSpiderParsers);
 			scan.setCustomFetchFilters(customFetchFilters);
 			scan.setCustomParseFilters(customParseFilters);
@@ -210,7 +196,6 @@ public class SpiderScanController implements ScanController<SpiderScan> {
 				return null;
 			}
 			ascan.stopScan();
-			ascan.clear();
 			spiderScanMap.remove(id);
 			spiderScanList.remove(ascan);
 			return ascan;
@@ -267,7 +252,6 @@ public class SpiderScanController implements ScanController<SpiderScan> {
 			for (Iterator<SpiderScan> it = spiderScanMap.values().iterator(); it.hasNext();) {
 				SpiderScan ascan = it.next();
 				ascan.stopScan();
-				ascan.clear();
 				it.remove();
 				spiderScanList.remove(ascan);
 				count++;
@@ -287,7 +271,6 @@ public class SpiderScanController implements ScanController<SpiderScan> {
 				SpiderScan scan = it.next();
 				if (scan.isStopped()) {
 					scan.stopScan();
-					scan.clear();
 					it.remove();
 					spiderScanList.remove(scan);
 					count ++;

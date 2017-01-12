@@ -136,10 +136,7 @@ public class DefaultTextHttpMessageLocation implements TextHttpMessageLocation {
 
         TextHttpMessageLocation otherTextLocation = (TextHttpMessageLocation) otherHttpMessageLocation;
         if (start == otherTextLocation.getStart()) {
-            if (start == end) {
-                return end == otherTextLocation.getEnd();
-            }
-            return otherTextLocation.getStart() != otherTextLocation.getEnd();
+            return (start == end) ? end == otherTextLocation.getEnd() : false;
         }
         if (start < otherTextLocation.getStart()) {
             return end > otherTextLocation.getStart();

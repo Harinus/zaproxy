@@ -151,7 +151,7 @@ public class ScriptAPI extends ApiImplementor {
 			
 			ScriptWrapper script = new ScriptWrapper(
 					params.getString(ACTION_PARAM_SCRIPT_NAME),
-					getParam(params, ACTION_PARAM_SCRIPT_DESC, ""),
+					params.getString(ACTION_PARAM_SCRIPT_DESC),
 					engine,
 					type,
 					true,

@@ -36,6 +36,9 @@ import org.zaproxy.zap.eventBus.EventBus;
 import org.zaproxy.zap.eventBus.SimpleEventBus;
 import org.zaproxy.zap.utils.ClassLoaderUtil;
 
+/**
+ * 
+ */
 public class ZAP {
 
     /**
@@ -85,9 +88,7 @@ public class ZAP {
             cmdLine = new CommandLine(args);
 
         } catch (final Exception e) {
-        	// Cant use the CommandLine help here as the 
-        	// i18n messages wont have been loaded
-            System.out.println("Failed due to invalid parameters. Use '-h' for more details.");
+            System.out.println(CommandLine.getHelp(null));
             System.exit(1);
         }
 

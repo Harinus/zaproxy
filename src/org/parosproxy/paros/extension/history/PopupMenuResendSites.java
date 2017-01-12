@@ -48,6 +48,9 @@ public class PopupMenuResendSites extends ExtensionPopupMenuItem {
     
     private ExtensionHistory extension;
 
+	/**
+     * 
+     */
     public PopupMenuResendSites() {
         super();
  		initialize();

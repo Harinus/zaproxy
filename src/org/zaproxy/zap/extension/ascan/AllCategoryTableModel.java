@@ -23,7 +23,6 @@
 // ZAP: 2012/05/03 Moved a statement in the method setValueAt(Object, int , int).
 // ZAP: 2013/11/28 Issue 923: Allow individual rule thresholds and strengths to be set via GUI
 // ZAP: 2014/05/20 Issue 377: Unfulfilled dependencies hang the active scan
-// ZAP: 2016/07/25 Change constructor's parameter to PluginFactory
 package org.zaproxy.zap.extension.ascan;
 
 import java.util.HashMap;
@@ -50,13 +49,10 @@ public class AllCategoryTableModel extends DefaultTableModel {
     private PluginFactory pluginFactory;
 
     /**
-     * Constructs an {@code AllCategoryTableModel} with the given plugin factory.
+     * @param policyAllCategoryPanel 
      *
-     * @param pluginFactory the plugin factory
-     * @see #setPluginFactory(PluginFactory)
      */
-    public AllCategoryTableModel(PluginFactory pluginFactory) {
-        this.pluginFactory = pluginFactory;
+    public AllCategoryTableModel(PolicyAllCategoryPanel policyAllCategoryPanel) {
     }
 
     

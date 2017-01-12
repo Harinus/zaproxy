@@ -47,6 +47,9 @@ public class OptionsGlobalExcludeURLPanel extends AbstractParamPanel {
 
 	private OptionsGlobalExcludeURLTableModel globalExcludeURLModel = null;
 	
+    /**
+     * 
+     */
     public OptionsGlobalExcludeURLPanel() {
         super();
  		initialize();
@@ -103,12 +106,11 @@ public class OptionsGlobalExcludeURLPanel extends AbstractParamPanel {
 	    globalExcludeURLParam.parse();
 	    List<String> ignoredRegexs = globalExcludeURLParam.getTokensNames();
 
+	    log.warn(ignoredRegexs.toString());
 	    Model.getSingleton().getSession().setGlobalExcludeURLRegexs(ignoredRegexs);
 	    // after saving, force the proxy/spider/scanner to refresh the URL lists.
 	    Model.getSingleton().getSession().forceGlobalExcludeURLRefresh();
-	    if (log.isDebugEnabled()) {
-	        log.debug("Done saving Global Exclude URL: " + ignoredRegexs.toString());
-	    }
+	    log.debug("Done saving Global Exclude URL");
     }
 
     /**

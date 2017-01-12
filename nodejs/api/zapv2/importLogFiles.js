@@ -2,7 +2,7 @@
  *
  * ZAP is an HTTP/HTTPS proxy for assessing web application security.
  *
- * Copyright 2016 the ZAP development team
+ * Copyright the ZAP development team
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,11 +56,7 @@ ImportLogFiles.prototype.PostModSecurityAuditEvent = function (auditeventstring,
     callback = apikey;
     apikey = null;
   }
-  var params = {'apikey' : apikey};
-  if (auditeventstring && auditeventstring !== null) {
-    params['AuditEventString'] = auditeventstring;
-  }
-  this.api.request('/importLogFiles/action/PostModSecurityAuditEvent/', params, callback);
+  this.api.request('/importLogFiles/action/PostModSecurityAuditEvent/', {'AuditEventString' : auditeventstring, 'apikey' : apikey}, callback);
 };
 
 /**

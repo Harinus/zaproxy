@@ -60,14 +60,14 @@ public interface Plugin extends Runnable {
     /**
      * Unique Paros ID of this plugin.
      *
-     * @return the ID
+     * @return
      */
     int getId();
 
     /**
      * Plugin name. This is the human readable plugin name for display.
      *
-     * @return the internationalised name
+     * @return
      */
     String getName();
 
@@ -75,14 +75,14 @@ public interface Plugin extends Runnable {
      * Code name is the plugin name used for dependency naming. By default this
      * is the class name (without the package prefix).
      *
-     * @return the internal name
+     * @return
      */
     String getCodeName();
 
     /**
      * Default description of this plugin.
      *
-     * @return the description
+     * @return
      */
     String getDescription();
 
@@ -100,11 +100,6 @@ public interface Plugin extends Runnable {
 
     void init(HttpMessage msg, HostProcess parent);
 
-    /**
-     * Scans the target server using the message previously set during initialisation.
-     * 
-     * @see #init(HttpMessage, HostProcess)
-     */
     void scan();
 
     /**
@@ -116,52 +111,50 @@ public interface Plugin extends Runnable {
     String[] getDependency();
 
     /**
-     * Sets whether or not the scanner is enabled.
+     * Enable/disable this plugin.
      *
-     * @param enabled {@code true} if the scanner should be enabled, {@code false} otherwise
+     * @param enabled
      */
     void setEnabled(boolean enabled);
 
     /**
-     * Tells whether or not the scanner is enabled.
-     * 
-     * @return {@code true} if the scanner is enabled, {@code false} otherwise
+     * Return if this plugin is enabled.
+     *
+     * @return true = enabled.
      */
     boolean isEnabled();
 
     /**
-     * Gets the category of this scanner.
+     * The Category of this plugin. See Category.
      *
-     * @return the category of the scanner
-     * @see Category
+     * @return
      */
     int getCategory();
 
     /**
      * Default solution returned by this plugin.
      *
-     * @return the solution
+     * @return
      */
     String getSolution();
 
     /**
      * Reference document provided by this plugin.
      *
-     * @return the references
+     * @return
      */
     String getReference();
 
     /**
      * Plugin must implement this to notify when completed.
      *
-     * @param parent the parent {@code HostProcess}
      */
     void notifyPluginCompleted(HostProcess parent);
 
     /**
-     * Tells whether or not the scanner can be selected and should be shown..
+     * Always true - if plugin is visible to the framework.
      *
-     * @return {@code true} if the scanner is visible, {@code false} otherwise
+     * @return
      */
     boolean isVisible();
 
@@ -224,7 +217,7 @@ public interface Plugin extends Runnable {
      * and may include LOW and HIGH OFF and DEFAULT are assumed and should not
      * be returned.
      *
-     * @return an array containing the attack thresholds supported
+     * @return
      */
     AlertThreshold[] getAlertThresholdsSupported();
 
@@ -266,19 +259,17 @@ public interface Plugin extends Runnable {
 
     /**
      * Returns an array of the AttackStrengths supported. It must include MEDIUM
-     * and may include LOW, HIGH and INSANE. DEFAULT is assumed and should not be
+     * and may include LOW, HIGH and INSANE DEFAULT is assumed and should not be
      * returned.
      *
-     * @return an array containing the attack strengths supported
+     * @return
      */
     AttackStrength[] getAttackStrengthsSupported();
 
     /**
-     * Sets the technologies enabled for the scan.
+     * Sets the technologies enabled for the scan. Might be {@code null} when all technologies are enabled.
      *
      * @param ts the technologies enabled for the scan
-     * @throws IllegalArgumentException (since TODO add version) if the given parameter is {@code null}.
-     * @since 2.0.0
      * @see #targets(TechSet)
      */
     void setTechSet(TechSet ts);
@@ -290,7 +281,6 @@ public interface Plugin extends Runnable {
      *
      * @param tech the technology that will be checked
      * @return {@code true} if the technology is enabled for the scan, {@code false} otherwise
-     * @since 2.0.0
      * @see #targets(TechSet)
      */
     boolean inScope(Tech tech);
@@ -304,7 +294,6 @@ public interface Plugin extends Runnable {
      *
      * @param technologies the technologies that are enabled for the scan, never {@code null}
      * @return {@code true} if the scanner is targeting the given technologies (or none at all), {@code false} otherwise
-     * @since 2.4.1
      * @see #setTechSet(TechSet)
      * @see #inScope(Tech)
      */
@@ -319,20 +308,19 @@ public interface Plugin extends Runnable {
     Date getTimeFinished();
 
     /**
-     * Gets the CWE ID of the issue(s) raised by the scanner.
+     * Get the CWE Id: http://cwe.mitre.org/index.html
      *
-     * @return the CWE ID, -1 if unknown.
+     * @return
      * @since 2.2.0
-     * @see <a href="https://cwe.mitre.org/index.html">CWE - Common Weakness Enumeration</a>
      */
     int getCweId();
 
     /**
-     * Gets the WASC ID of the issue(s) raised by the scanner.
+     * Get the WASC Id:
+     * http://projects.webappsec.org/w/page/13246978/Threat%20Classification
      *
-     * @return the WASC ID, -1 if unknown.
+     * @return
      * @since 2.2.0
-     * @see <a href="http://projects.webappsec.org/w/page/13246978/Threat%20Classification">The WASC Threat Classification</a>
      */
     int getWascId();
     

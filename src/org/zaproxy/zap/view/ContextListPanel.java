@@ -52,6 +52,8 @@ public class ContextListPanel extends AbstractParamPanel {
     
 	/**
 	 * This method initializes this
+	 * 
+	 * @return void
 	 */
 	private void initialize() {
         this.setLayout(new CardLayout());
@@ -170,9 +172,16 @@ public class ContextListPanel extends AbstractParamPanel {
 	
 	@Override
 	public void saveParam (Object obj) throws Exception {
-		// Nothing to do, the table does not allow to edit its values.
-		// NOTE: If changed to be editable it should be in sync with the view state (share view models?) of
-		// ContextGeneralPanel(s), the context name and "in scope" state is also shown (and editable) there.
+	    Session session = (Session) obj;
+		List<Object[]> values = this.model.getValues();
+		
+		for (Object[] value: values) {
+			Context ctx = session.getContext((Integer)value[0]);
+			if (ctx.isInScope() != (Boolean) value[2]) {
+				ctx.setInScope( ! ctx.isInScope());
+			}
+			
+		}
 	}
 
 	@Override

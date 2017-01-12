@@ -133,7 +133,7 @@ public class GenericAuthenticationCredentials implements AuthenticationCredentia
 				int userId = ApiUtils.getIntParam(params, UsersAPI.PARAM_USER_ID);
 				// Make sure the type of authentication method is compatible
 				if (!methodType.isTypeForMethod(context.getAuthenticationMethod()))
-					throw new ApiException(ApiException.Type.ILLEGAL_PARAMETER,
+					throw new ApiException(ApiException.Type.BAD_TYPE,
 							"User's credentials should match authentication method type of the context: "
 									+ context.getAuthenticationMethod().getType().getName());
 

@@ -36,6 +36,7 @@ import org.parosproxy.paros.model.HistoryReference;
 import org.parosproxy.paros.model.Model;
 import org.parosproxy.paros.model.Session;
 import org.parosproxy.paros.model.SiteNode;
+import org.parosproxy.paros.network.HttpMessage;
 import org.zaproxy.zap.extension.alert.AlertNode;
 import org.zaproxy.zap.extension.ascan.ActiveScanPanel;
 import org.zaproxy.zap.extension.search.SearchPanel;
@@ -53,7 +54,7 @@ public abstract class PopupMenuHistoryReference extends ExtensionPopupMenuItem {
 	private static final long serialVersionUID = 1L;
 	private JTree treeInvoker = null;
     private HistoryReferencesTable hrefsTableInvoker = null;
-    private HistoryReferencesTable hrefTableInvoker = null;
+    private HistoryReferenceTable hrefTableInvoker = null;
     private Invoker lastInvoker = null;
     private boolean multiSelect = false;
 
@@ -120,6 +121,7 @@ public abstract class PopupMenuHistoryReference extends ExtensionPopupMenuItem {
 	}
 	
 	private HistoryReference getSelectedHistoryReference() {
+		HttpMessage msg = null;
 	    HistoryReference ref = null;
     	try {
     		switch (lastInvoker) {
@@ -144,7 +146,7 @@ public abstract class PopupMenuHistoryReference extends ExtensionPopupMenuItem {
         	    }
 				break;
     		case hreftable:
-    			ref = hrefTableInvoker.getSelectedHistoryReference();
+    			ref = hrefTableInvoker.getSelectedValue();
     			break;
     		}
 		} catch (Exception e2) {
@@ -157,6 +159,8 @@ public abstract class PopupMenuHistoryReference extends ExtensionPopupMenuItem {
 	private List<HistoryReference> getSelectedHistoryReferences() {
 	    List <HistoryReference> refs = new ArrayList<>();
 	    TreePath[] treePaths = null;
+	    List<?> selectedValues = null;
+		HttpMessage msg = null;
     	try {
     		switch (lastInvoker) {
     		case sites:
@@ -186,7 +190,7 @@ public abstract class PopupMenuHistoryReference extends ExtensionPopupMenuItem {
         	    }
 				break;
     		case hreftable:
-    			refs = hrefTableInvoker.getSelectedHistoryReferences();
+    			refs = hrefTableInvoker.getSelectedValues();
     			break;
     		}
 		} catch (Exception e2) {
@@ -251,9 +255,9 @@ public abstract class PopupMenuHistoryReference extends ExtensionPopupMenuItem {
             this.hrefsTableInvoker = (HistoryReferencesTable) invoker;
             this.setEnabled(isEnabledForHistoryReferences(getSelectedHistoryReferences()));
             display = true;
-        } else if (invoker instanceof HistoryReferencesTable) {
+        } else if (invoker instanceof HistoryReferenceTable) {
         	this.lastInvoker = Invoker.hreftable;
-            this.hrefTableInvoker = (HistoryReferencesTable) invoker;
+            this.hrefTableInvoker = (HistoryReferenceTable) invoker;
             this.setEnabled(isEnabledForHistoryReferences(getSelectedHistoryReferences()));
             display = true;
         } else {

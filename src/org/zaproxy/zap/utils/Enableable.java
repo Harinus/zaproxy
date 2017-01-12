@@ -19,7 +19,7 @@
  */
 package org.zaproxy.zap.utils;
 
-public abstract class Enableable implements EnableableInterface {
+public abstract class Enableable {
 
     private boolean enabled;
 
@@ -31,12 +31,10 @@ public abstract class Enableable implements EnableableInterface {
         this.enabled = enabled;
     }
 
-    @Override
     public boolean isEnabled() {
         return enabled;
     }
 
-    @Override
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }

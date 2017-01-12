@@ -40,6 +40,7 @@ import org.parosproxy.paros.model.Model;
 import org.parosproxy.paros.model.Session;
 import org.zaproxy.zap.authentication.AuthenticationMethodType;
 import org.zaproxy.zap.control.ExtensionFactory;
+import org.zaproxy.zap.extension.api.API;
 import org.zaproxy.zap.extension.authentication.ExtensionAuthentication;
 import org.zaproxy.zap.extension.httpsessions.ExtensionHttpSessions;
 import org.zaproxy.zap.extension.sessions.ExtensionSessionManagement;
@@ -149,7 +150,7 @@ public class ExtensionUserManagement extends ExtensionAdaptor implements Context
 
 		// Prepare API
 		this.api = new UsersAPI(this);
-		extensionHook.addApiImplementor(api);
+		API.getInstance().registerApiImplementor(api);
 	}
 
 	@Override

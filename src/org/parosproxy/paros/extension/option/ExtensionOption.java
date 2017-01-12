@@ -27,8 +27,6 @@
 // to add the optionsDatabasePanel to the options panel.
 // ZAP: 2015/03/16 Issue 1525: Further database independence changes
 // ZAP: 2015/08/17 Issue 1795: Allow JVM options to be configured via GUI
-// ZAP: 2016/04/05 Issue 2458: Fix xlint warning messages 
-// ZAP: 2016/06/20 Removed unnecessary/unused constructor
 
 package org.parosproxy.paros.extension.option;
 
@@ -60,11 +58,19 @@ public class ExtensionOption extends ExtensionAdaptor {
 
 	
     public ExtensionOption() {
-        super("ExtensionViewOption");
+        super();
+ 		initialize();
+    }
+
+    public ExtensionOption(String name) {
+        super(name);
+    }
+
+	private void initialize() {
+        this.setName("ExtensionViewOption");
         this.setOrder(2);
 	}
 	
-	@SuppressWarnings("deprecation")
 	@Override
 	public void hook(ExtensionHook extensionHook) {
 	    super.hook(extensionHook);

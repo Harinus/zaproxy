@@ -31,9 +31,9 @@ import org.zaproxy.zap.utils.XMLStringUtil;
 
 public class ApiResponseSet extends ApiResponse {
 
-	private Map<String, ?> values = null;
+	private Map<String, Object> values = null;
 
-	public ApiResponseSet(String name, Map<String, ?> values) {
+	public ApiResponseSet(String name, Map values) {
 		super(name);
 		this.values = values;
 	}
@@ -44,7 +44,7 @@ public class ApiResponseSet extends ApiResponse {
 			return null;
 		}
 		JSONObject jo = new JSONObject();
-		for (Entry<String, ?> val : values.entrySet()) {
+		for (Entry<String, Object> val : values.entrySet()) {
 			jo.put(val.getKey(), val.getValue());
 		}
 		return jo;
@@ -53,10 +53,15 @@ public class ApiResponseSet extends ApiResponse {
 	@Override
 	public void toXML(Document doc, Element parent) {
 		parent.setAttribute("type", "set");
-		for (Entry<String, ?> val : values.entrySet()) {
+		for (Entry<String, Object> val : values.entrySet()) {
 			Element el = doc.createElement(val.getKey());
-			String textValue = val.getValue() == null ? "" : val.getValue().toString();
-			Text text = doc.createTextNode(XMLStringUtil.escapeControlChrs(textValue));
+			Text text;
+			if (val.getValue() instanceof String) {
+				text = doc.createTextNode(XMLStringUtil.escapeControlChrs(
+						(String)val.getValue()));
+			} else {
+				text = doc.createTextNode(""+val.getValue());
+			}
 			el.appendChild(text);
 			parent.appendChild(el);
 		}
@@ -66,13 +71,14 @@ public class ApiResponseSet extends ApiResponse {
 	public void toHTML(StringBuilder sb) {
 		sb.append("<h2>" + StringEscapeUtils.escapeHtml(this.getName()) + "</h2>\n");
 		sb.append("<table border=\"1\">\n");
-		for (Entry<String, ?> val : values.entrySet()) {
+		for (Entry<String, Object> val : values.entrySet()) {
 			sb.append("<tr><td>\n");
 			sb.append(StringEscapeUtils.escapeHtml(val.getKey()));
 			sb.append("</td><td>\n");
-			Object value = val.getValue();
-			if (value != null) {
-				sb.append(StringEscapeUtils.escapeHtml(value.toString()));
+			if (val.getValue() instanceof String) {
+				sb.append(StringEscapeUtils.escapeHtml((String)val.getValue()));
+			} else {
+				sb.append(val.getValue());
 			}
 			sb.append("</td></tr>\n");
 		}
@@ -88,7 +94,7 @@ public class ApiResponseSet extends ApiResponse {
 		sb.append("ApiResponseSet ");
 		sb.append(this.getName());
 		sb.append(" : [\n");
-		for (Entry<String, ?> val : values.entrySet()) {
+		for (Entry<String, Object> val : values.entrySet()) {
 			for (int i = 0; i < indent + 1; i++) {
 				sb.append("\t");
 			}
@@ -107,7 +113,7 @@ public class ApiResponseSet extends ApiResponse {
 	/*
 	 * Package visible method for simplified unit testing
 	 */
-	Map<String, ?> getValues() {
+	Map<String, Object> getValues() {
 		return values;
 	}
 

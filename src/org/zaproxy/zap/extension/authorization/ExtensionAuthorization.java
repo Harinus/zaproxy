@@ -35,6 +35,8 @@ import org.parosproxy.paros.extension.ExtensionAdaptor;
 import org.parosproxy.paros.extension.ExtensionHook;
 import org.parosproxy.paros.model.Model;
 import org.parosproxy.paros.model.Session;
+import org.zaproxy.zap.extension.api.API;
+import org.zaproxy.zap.extension.api.ApiImplementor;
 import org.zaproxy.zap.model.Context;
 import org.zaproxy.zap.model.ContextDataFactory;
 import org.zaproxy.zap.view.AbstractContextPropertiesPanel;
@@ -84,7 +86,9 @@ public class ExtensionAuthorization extends ExtensionAdaptor implements ContextP
 			getView().addContextPanelFactory(this);
 		}
 
-		extensionHook.addApiImplementor(new AuthorizationAPI());
+		// Register the api
+		ApiImplementor api = new AuthorizationAPI();
+		API.getInstance().registerApiImplementor(api);
 	}
 
 	@Override

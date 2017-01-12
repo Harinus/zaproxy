@@ -19,11 +19,8 @@
  */
 package org.parosproxy.paros.core.scanner;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.commons.httpclient.URI;
 import org.apache.commons.httpclient.URIException;
 import org.apache.commons.lang.StringUtils;
@@ -116,9 +113,9 @@ public class VariantURLPath implements Variant {
     private String getEscapedValue(String value) {
         if (value != null) {
             try {
-                return URLEncoder.encode(value, "UTF-8");
+                return (new URI(null, null, value, null)).toString();
                 
-            } catch ( UnsupportedEncodingException ex) { }            
+            } catch (URIException ex) { }            
         }
         
         return "";

@@ -49,8 +49,6 @@ public class MaxChildrenParseFilter extends ParseFilter {
 
 	/**
 	 * Sets the model
-	 * 
-	 * @param model the model used to check the number of children of a node
 	 */
 	public void setModel(Model model) {
 		this.model = model;

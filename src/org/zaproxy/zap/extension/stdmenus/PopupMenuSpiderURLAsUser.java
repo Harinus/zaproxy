@@ -28,10 +28,7 @@ import org.zaproxy.zap.users.User;
 
 /**
  * The Class PopupMenuSpiderURLAsUser.
- * 
- * @deprecated (TODO add version) Superseded by {@link PopupMenuSpiderDialog}.
  */
-@Deprecated
 public class PopupMenuSpiderURLAsUser extends PopupUserMenuItemHolder {
 
 	/** The Constant serialVersionUID. */

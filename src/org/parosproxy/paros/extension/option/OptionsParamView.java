@@ -30,21 +30,15 @@
 // ZAP: 2014/10/09 Issue 1359: Options for splash screen
 // ZAP: 2014/12/16 Issue 1466: Config option for 'large display' size
 // ZAP: 2015/03/04 Added dev build warning option
-// ZAP: 2016/04/04 Do not require a restart to show/hide the tool bar
-// ZAP: 2016/04/06 Fix layouts' issues
-// ZAP: 2016/04/27 Save, always, the Locale as String
-// ZAP: 2016/05/13 Add options to confirm removal of exclude from proxy, scanner and spider regexes
 
 package org.parosproxy.paros.extension.option;
 
 import java.util.Locale;
 
-import org.apache.commons.configuration.ConversionException;
-import org.apache.log4j.Logger;
 import org.parosproxy.paros.Constant;
 import org.parosproxy.paros.common.AbstractParam;
 import org.parosproxy.paros.control.Control.Mode;
-import org.parosproxy.paros.view.WorkbenchPanel;
+import org.parosproxy.paros.view.View;
 import org.zaproxy.zap.extension.httppanel.view.largerequest.LargeRequestUtil;
 import org.zaproxy.zap.extension.httppanel.view.largeresponse.LargeResponseUtil;
 
@@ -52,8 +46,6 @@ import org.zaproxy.zap.extension.httppanel.view.largeresponse.LargeResponseUtil;
 
 public class OptionsParamView extends AbstractParam {
 	
-	private static final Logger LOGGER = Logger.getLogger(OptionsParamView.class);
-
 	private static final String DEFAULT_TIME_STAMP_FORMAT =  Constant.messages.getString("timestamp.format.default");
 	
 	public static final String BASE_VIEW_KEY = "view";
@@ -63,7 +55,6 @@ public class OptionsParamView extends AbstractParam {
 	public static final String LOCALE = "view.locale";
 	public static final String LOCALES = "view.locales";
 	public static final String DISPLAY_OPTION = "view.displayOption";
-	private static final String RESPONSE_PANEL_POS_KEY = BASE_VIEW_KEY + ".messagePanelsPosition.lastSelectedPosition";
 	public static final String BRK_PANEL_VIEW_OPTION = "view.brkPanelView";
 	public static final String SHOW_MAIN_TOOLBAR_OPTION = "view.showMainToolbar";
 	public static final String DEFAULT_LOCALE = "en_GB";
@@ -75,12 +66,6 @@ public class OptionsParamView extends AbstractParam {
 	public static final String TAB_PIN_OPTION = "view.tab.pin";
 	public static final String OUTPUT_TAB_TIMESTAMPING_OPTION = "view.outputTabsTimeStampsOption"; 
 	public static final String OUTPUT_TAB_TIMESTAMP_FORMAT = "view.outputTabsTimeStampsFormat"; 
-
-	/**
-	 * The configuration key used to save/load the option {@link #showLocalConnectRequests}.
-	 */
-	private static final String SHOW_LOCAL_CONNECT_REQUESTS = "view.showLocalConnectRequests";
-
 	public static final String SPLASHSCREEN_OPTION = "view.splashScreen";
 	public static final String LARGE_REQUEST_SIZE = "view.largeRequest";
 	public static final String LARGE_RESPONSE_SIZE = "view.largeResponse";
@@ -89,17 +74,12 @@ public class OptionsParamView extends AbstractParam {
 	public static final String SCALE_IMAGES = "view.scaleImages";
 	public static final String SHOW_DEV_WARNING = "view.showDevWarning";
 
-    private static final String CONFIRM_REMOVE_PROXY_EXCLUDE_REGEX_KEY = "view.confirmRemoveProxyExcludeRegex";
-    private static final String CONFIRM_REMOVE_SCANNER_EXCLUDE_REGEX_KEY = "view.confirmRemoveScannerExcludeRegex";
-    private static final String CONFIRM_REMOVE_SPIDER_EXCLUDE_REGEX_KEY = "view.confirmRemoveSpiderExcludeRegex";
-
 	private int advancedViewEnabled = 0;
 	private int processImages = 0;
 	private int showMainToolbar = 1;
 	private String configLocale = "";
 	private String locale = "";
 	private int displayOption = 0;
-	private String responsePanelPosition;
 	private int brkPanelViewOption = 0;
 	private int askOnExitEnabled = 1;
 	private int wmUiHandlingEnabled = 0;
@@ -108,16 +88,6 @@ public class OptionsParamView extends AbstractParam {
 	private String mode = Mode.standard.name();
 	private boolean outputTabTimeStampingEnabled = false; 
 	private String outputTabTimeStampFormat = DEFAULT_TIME_STAMP_FORMAT; 
-
-	/**
-	 * Flag that indicates if the HTTP CONNECT requests received by the local proxy should be (persisted and) shown in the UI.
-	 * 
-	 * @see #SHOW_LOCAL_CONNECT_REQUESTS
-	 * @see #isShowLocalConnectRequests()
-	 * @see #setShowLocalConnectRequests(boolean)
-	 */
-	private boolean showLocalConnectRequests;
-	
     private boolean showSplashScreen = true;
     private int largeRequestSize = LargeRequestUtil.DEFAULT_MIN_CONTENT_LENGTH;
     private int largeResponseSize = LargeResponseUtil.DEFAULT_MIN_CONTENT_LENGTH;
@@ -125,10 +95,6 @@ public class OptionsParamView extends AbstractParam {
     private String fontName = "";
     private boolean scaleImages = true;
     private boolean showDevWarning = true;
-
-    private boolean confirmRemoveProxyExcludeRegex;
-    private boolean confirmRemoveScannerExcludeRegex;
-    private boolean confirmRemoveSpiderExcludeRegex;
 	
     public OptionsParamView() {
     }
@@ -141,8 +107,6 @@ public class OptionsParamView extends AbstractParam {
 	    configLocale = getConfig().getString(LOCALE, null);	// No default
 	    locale = getConfig().getString(LOCALE, DEFAULT_LOCALE);
 	    displayOption = getConfig().getInt(DISPLAY_OPTION, 0);
-        responsePanelPosition = getConfig()
-                .getString(RESPONSE_PANEL_POS_KEY, WorkbenchPanel.ResponsePanelPosition.TABS_SIDE_BY_SIDE.name());
 	    brkPanelViewOption = getConfig().getInt(BRK_PANEL_VIEW_OPTION, 0);
 	    showMainToolbar = getConfig().getInt(SHOW_MAIN_TOOLBAR_OPTION, 1);
 	    advancedViewEnabled = getConfig().getInt(ADVANCEDUI_OPTION, 0);
@@ -152,13 +116,6 @@ public class OptionsParamView extends AbstractParam {
 	    mode = getConfig().getString(MODE_OPTION, Mode.standard.name());
 	    outputTabTimeStampingEnabled = getConfig().getBoolean(OUTPUT_TAB_TIMESTAMPING_OPTION, false); 
 	    outputTabTimeStampFormat = getConfig().getString(OUTPUT_TAB_TIMESTAMP_FORMAT, DEFAULT_TIME_STAMP_FORMAT);
-
-        try {
-            showLocalConnectRequests = getConfig().getBoolean(SHOW_LOCAL_CONNECT_REQUESTS, false);
-        } catch (ConversionException e) {
-            LOGGER.error("Error while parsing config file: " + e.getMessage(), e);
-        }
-
 	    showSplashScreen = getConfig().getBoolean(SPLASHSCREEN_OPTION, true);
 	    largeRequestSize = getConfig().getInteger(LARGE_REQUEST_SIZE, LargeRequestUtil.DEFAULT_MIN_CONTENT_LENGTH);
 	    largeResponseSize = getConfig().getInteger(LARGE_RESPONSE_SIZE, LargeResponseUtil.DEFAULT_MIN_CONTENT_LENGTH);
@@ -170,24 +127,6 @@ public class OptionsParamView extends AbstractParam {
 	    // Special cases - set via static methods
 	    LargeRequestUtil.setMinContentLength(largeRequestSize);
 	    LargeResponseUtil.setMinContentLength(largeResponseSize);
-
-        try {
-            this.confirmRemoveProxyExcludeRegex = getConfig().getBoolean(CONFIRM_REMOVE_PROXY_EXCLUDE_REGEX_KEY, false);
-        } catch (ConversionException e) {
-            LOGGER.error("Error while parsing config file: " + e.getMessage(), e);
-        }
-
-        try {
-            this.confirmRemoveScannerExcludeRegex = getConfig().getBoolean(CONFIRM_REMOVE_SCANNER_EXCLUDE_REGEX_KEY, false);
-        } catch (ConversionException e) {
-            LOGGER.error("Error while parsing config file: " + e.getMessage(), e);
-        }
-
-        try {
-            this.confirmRemoveSpiderExcludeRegex = getConfig().getBoolean(CONFIRM_REMOVE_SPIDER_EXCLUDE_REGEX_KEY, false);
-        } catch (ConversionException e) {
-            LOGGER.error("Error while parsing config file: " + e.getMessage(), e);
-        }
     }
 
 	/**
@@ -210,43 +149,13 @@ public class OptionsParamView extends AbstractParam {
 		return !(processImages == 0);
 	}
 	
-	/**
-	 * @deprecated (2.5.0) Use {@link #isShowMainToolbar()} instead. It will be removed in a future release.
-	 */
-	@Deprecated
-	@SuppressWarnings("javadoc")
 	public int getShowMainToolbar() {
 		return showMainToolbar;
 	}
 	
-	/**
-	 * Tells whether or not the main tool bar should be shown.
-	 *
-	 * @return {@code true} if the main tool bar should be shown, {@code false} otherwise.
-	 * @since 2.5.0
-	 */
-	public boolean isShowMainToolbar() {
-		return showMainToolbar != 0;
-	}
-
-	/**
-	 * @deprecated (2.5.0) Use {@link #setShowMainToolbar(boolean)} instead. It will be removed in a future release.
-	 */
-	@Deprecated
-	@SuppressWarnings("javadoc")
 	public void setShowMainToolbar(int showMainToolbar) {
-		setShowMainToolbar(showMainToolbar != 0);
-	}
-
-	/**
-	 * Sets whether or not the main tool bar should be shown.
-	 *
-	 * @param show {@code true} if the main tool bar should be shown, {@code false} otherwise.
-	 * @since 2.5.0
-	 */
-	public void setShowMainToolbar(boolean show) {
-		this.showMainToolbar = show ? 1 : 0;
-		getConfig().setProperty(SHOW_MAIN_TOOLBAR_OPTION, showMainToolbar);
+		this.showMainToolbar = showMainToolbar;
+		getConfig().setProperty(SHOW_MAIN_TOOLBAR_OPTION, Integer.toString(showMainToolbar));
 	}
 
 	
@@ -273,7 +182,8 @@ public class OptionsParamView extends AbstractParam {
 			sb.append(locale.getLanguage());
 			if (locale.getCountry().length() > 0) sb.append("_").append(locale.getCountry());
 			if (locale.getVariant().length() > 0) sb.append("_").append(locale.getVariant());
-			setLocale(sb.toString());
+			this.locale = sb.toString();
+			getConfig().setProperty(LOCALE, locale);
 		}
 	}
 
@@ -291,6 +201,10 @@ public class OptionsParamView extends AbstractParam {
 	
 	public void setShowTabNames(boolean showTabNames) {
 		this.showTabNames = showTabNames;
+
+    	// toggle between shown/hidden tab names 
+    	View.getSingleton().getWorkbench().toggleTabNames(showTabNames);
+
 		getConfig().setProperty(SHOW_TEXT_ICONS, showTabNames);
 	}
 
@@ -310,28 +224,6 @@ public class OptionsParamView extends AbstractParam {
 	public void setDisplayOption(int displayOption) {
 		this.displayOption = displayOption;
 		getConfig().setProperty(DISPLAY_OPTION, Integer.toString(displayOption));
-	}
-
-	/**
-	 * Gets the name of the current response panel position.
-	 *
-	 * @return the name of the current position
-	 * @since 2.5.0
-	 * @see org.parosproxy.paros.view.WorkbenchPanel.ResponsePanelPosition
-	 */
-	public String getResponsePanelPosition() {
-		return responsePanelPosition;
-	}
-
-	/**
-	 * Sets the name of the current response panel position.
-	 * 
-	 * @param position the name of the position
-	 * @since 2.5.0
-	 */
-	public void setResponsePanelPosition(String position) {
-		this.responsePanelPosition = position;
-		getConfig().setProperty(RESPONSE_PANEL_POS_KEY, position);
 	}
 	
 	public int getAdvancedViewOption() {
@@ -395,33 +287,6 @@ public class OptionsParamView extends AbstractParam {
 
 	public String getOutputTabTimeStampsFormat() {
 		return outputTabTimeStampFormat;
-	}
-
-	/**
-	 * Sets whether or not the HTTP CONNECT requests received by the local proxy should be (persisted and) shown in the UI.
-	 *
-	 * @param showConnectRequests {@code true} if the HTTP CONNECT requests should be shown, {@code false} otherwise
-	 * @since 2.5.0
-	 * @see #isShowLocalConnectRequests()
-	 */
-	public void setShowLocalConnectRequests(boolean showConnectRequests) {
-		if (showLocalConnectRequests != showConnectRequests) {
-			showLocalConnectRequests = showConnectRequests;
-			getConfig().setProperty(SHOW_LOCAL_CONNECT_REQUESTS, showConnectRequests);
-		}
-	}
-
-	/**
-	 * Tells whether or not the HTTP CONNECT requests received by the local proxy should be (persisted and) shown in the UI.
-	 * <p>
-	 * The default is to not show the HTTP CONNECT requests.
-	 *
-	 * @return {@code true} if the HTTP CONNECT requests should be shown, {@code false} otherwise
-	 * @since 2.5.0
-	 * @see #setShowLocalConnectRequests(boolean)
-	 */
-	public boolean isShowLocalConnectRequests() {
-		return showLocalConnectRequests;
 	}
 
 	public boolean isShowSplashScreen() {
@@ -489,30 +354,4 @@ public class OptionsParamView extends AbstractParam {
 		getConfig().setProperty(SHOW_DEV_WARNING, showDevWarning);
 	}
 	
-    public boolean isConfirmRemoveProxyExcludeRegex() {
-        return this.confirmRemoveProxyExcludeRegex;
-    }
-
-    public void setConfirmRemoveProxyExcludeRegex(boolean confirmRemove) {
-        this.confirmRemoveProxyExcludeRegex = confirmRemove;
-        getConfig().setProperty(CONFIRM_REMOVE_PROXY_EXCLUDE_REGEX_KEY, Boolean.valueOf(confirmRemove));
-    }
-
-    public boolean isConfirmRemoveScannerExcludeRegex() {
-        return this.confirmRemoveScannerExcludeRegex;
-    }
-
-    public void setConfirmRemoveScannerExcludeRegex(boolean confirmRemove) {
-        this.confirmRemoveScannerExcludeRegex = confirmRemove;
-        getConfig().setProperty(CONFIRM_REMOVE_SCANNER_EXCLUDE_REGEX_KEY, Boolean.valueOf(confirmRemove));
-    }
-
-    public boolean isConfirmRemoveSpiderExcludeRegex() {
-        return this.confirmRemoveSpiderExcludeRegex;
-    }
-
-    public void setConfirmRemoveSpiderExcludeRegex(boolean confirmRemove) {
-        this.confirmRemoveSpiderExcludeRegex = confirmRemove;
-        getConfig().setProperty(CONFIRM_REMOVE_SPIDER_EXCLUDE_REGEX_KEY, Boolean.valueOf(confirmRemove));
-    }
 }

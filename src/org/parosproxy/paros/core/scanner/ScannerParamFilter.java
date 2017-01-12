@@ -35,7 +35,7 @@ import org.parosproxy.paros.network.HttpMessage;
  * @author yhawke (2014)
  * @see NameValuePair
  */
-public class ScannerParamFilter implements Cloneable {
+public class ScannerParamFilter {
     private String wildcardedUrl;
     private String paramNameRegex;
     private int paramType;
@@ -137,16 +137,6 @@ public class ScannerParamFilter implements Cloneable {
         return new ScannerParamFilter(paramNameRegex, paramType, wildcardedUrl);
     }
     
-    @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((paramNameRegex == null) ? 0 : paramNameRegex.hashCode());
-        result = prime * result + paramType;
-        result = prime * result + ((wildcardedUrl == null) ? 0 : wildcardedUrl.hashCode());
-        return result;
-    }
-
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof ScannerParamFilter) {

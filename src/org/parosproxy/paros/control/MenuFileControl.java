@@ -41,8 +41,6 @@
 // ZAP: 2015/01/29 Issue 1489: Version number in window title
 // ZAP: 2015/02/05 Issue 1524: New Persist Session dialog
 // ZAP: 2015/04/02 Issue 321: Support multiple databases
-// ZAP: 2015/12/14 Log exception and internationalise error message
-// ZAP: 2016/10/26 Issue 1952: Do not allow Contexts with same name
 
 package org.parosproxy.paros.control;
  
@@ -69,7 +67,6 @@ import org.parosproxy.paros.model.Session;
 import org.parosproxy.paros.model.SessionListener;
 import org.parosproxy.paros.view.View;
 import org.parosproxy.paros.view.WaitMessageDialog;
-import org.zaproxy.zap.model.IllegalContextNameException;
 import org.zaproxy.zap.view.ContextExportDialog;
 import org.zaproxy.zap.view.PersistSessionDialog;
 import org.zaproxy.zap.view.SessionTableSelectDialog;
@@ -108,6 +105,7 @@ public class MenuFileControl implements SessionListener {
 		    } else if (view.showConfirmDialog(Constant.messages.getString("menu.file.closeSession")) != JOptionPane.OK_OPTION) {
 				return;
 			}
+			control.createAndOpenUntitledDb();
 		}
 		
 		int newSessionOption = model.getOptionsParam().getDatabaseParam().getNewSessionOption();
@@ -508,9 +506,9 @@ public class MenuFileControl implements SessionListener {
             setTitle();
             //view.getMainFrame().setTitle(file.getName().replaceAll(".session\\z","") + " - " + Constant.PROGRAM_NAME);
         } else {
-            view.showWarningDialog(Constant.messages.getString("menu.file.openSession.errorFile"));
+            view.showWarningDialog("Error opening session file");
             if (file != null) {
-                log.error("Error opening session file " + file.getAbsolutePath(), e);
+                log.error("Error opening session file " + file.getAbsolutePath());
             } else {
             	// File is null for table based sessions (ie non HSQLDB)
                 log.error(e.getMessage(), e);
@@ -595,17 +593,6 @@ public class MenuFileControl implements SessionListener {
 			    		Model.getSingleton().getSession(), 
 			    		Constant.messages.getString("context.list"), true);
 				
-			} catch (IllegalContextNameException e) {
-				String detailError;
-				if (e.getReason() == IllegalContextNameException.Reason.EMPTY_NAME) {
-					detailError = Constant.messages.getString("context.error.name.empty");
-				} else if (e.getReason() == IllegalContextNameException.Reason.DUPLICATED_NAME) {
-					detailError = Constant.messages.getString("context.error.name.duplicated");
-				} else {
-					detailError = Constant.messages.getString("context.error.name.unknown");
-				}
-				View.getSingleton().showWarningDialog(
-						MessageFormat.format(Constant.messages.getString("context.import.error"), detailError));
 			} catch (Exception e1) {
 				log.debug(e1.getMessage(), e1);
 				View.getSingleton().showWarningDialog(MessageFormat.format(

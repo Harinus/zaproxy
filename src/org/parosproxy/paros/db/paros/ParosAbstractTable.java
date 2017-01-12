@@ -38,6 +38,9 @@ import org.parosproxy.paros.db.DatabaseUnsupportedException;
     private Connection connection = null;
     private ParosDatabaseServer server = null;
     
+    /**
+     * 
+     */
     public ParosAbstractTable() {
     }
     

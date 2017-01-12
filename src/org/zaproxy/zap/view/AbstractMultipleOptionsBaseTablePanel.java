@@ -41,7 +41,7 @@ import org.parosproxy.paros.Constant;
 /**
  *
  * @author yhawke (2014)
- * @param <E> the type of the options
+ * @param <E>
  */
 public abstract class AbstractMultipleOptionsBaseTablePanel<E> extends MultipleOptionsTablePanel {
     

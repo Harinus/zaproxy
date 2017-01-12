@@ -165,7 +165,6 @@ public class SearchAPI extends ApiImplementor {
 					public void processRecordHistory(RecordHistory recordHistory) {
 						result.addItem(ApiResponseConversionUtils.httpMessageToSet(
 								recordHistory.getHistoryId(),
-								recordHistory.getHistoryType(),
 								recordHistory.getHttpMessage()));
 					}
 				};

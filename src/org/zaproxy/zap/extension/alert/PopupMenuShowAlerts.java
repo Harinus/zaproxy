@@ -37,9 +37,7 @@ public class PopupMenuShowAlerts extends PopupMenuHistoryReferenceContainer {
 	private static final long serialVersionUID = 1L;
 
     /**
-     * Constructs a {@code PopupMenuShowAlerts} with the given label.
-     * 
-     * @param label the text shown in the pop up menu
+     * @param label
      */
     public PopupMenuShowAlerts(String label) {
         super(label);
@@ -50,7 +48,6 @@ public class PopupMenuShowAlerts extends PopupMenuHistoryReferenceContainer {
 	public boolean isEnableForInvoker(Invoker invoker, HttpMessageContainer httpMessageContainer) {
 		switch (invoker) {
 		case SITES_PANEL:
-		case SPIDER_PANEL:
 		case HISTORY_PANEL:
 			return true;
 		default:
@@ -60,11 +57,9 @@ public class PopupMenuShowAlerts extends PopupMenuHistoryReferenceContainer {
 
 	@Override
     public boolean isButtonEnabledForHistoryReference (HistoryReference href) {
-		List<Alert> alerts;
+		List<Alert> alerts = href.getAlerts();
 		if (href.getSiteNode() != null) {
 			alerts = href.getSiteNode().getAlerts();
-		} else {
-			alerts = href.getAlerts();
 		}
 		URI hrefURI = href.getURI();
 		List<PopupMenuShowAlert> alertList = new ArrayList<>(alerts.size()); 
@@ -73,7 +68,7 @@ public class PopupMenuShowAlerts extends PopupMenuHistoryReferenceContainer {
 			if (hrefURI != null && ! alert.getUri().equals(hrefURI.toString())) {
 				continue;
 			}
-			final PopupMenuShowAlert menuItem = new PopupMenuShowAlert(alert.getName(), alert);
+			final PopupMenuShowAlert menuItem = new PopupMenuShowAlert(alert.getAlert(), alert);
 			menuItem.setIcon(new ImageIcon(alert.getIconUrl()));
 			
 			alertList.add(menuItem);

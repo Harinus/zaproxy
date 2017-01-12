@@ -43,11 +43,29 @@ public class ExtensionLog4j extends ExtensionAdaptor {
 
 	private ScanStatus scanStatus;
 	
+    /**
+     * 
+     */
     public ExtensionLog4j() {
-        super("ExtensionLog4j");
+        super();
+ 		initialize();
+    }
+
+    /**
+     * @param name
+     */
+    public ExtensionLog4j(String name) {
+        super(name);
+    }
+
+	/**
+	 * This method initializes this
+	 */
+	private void initialize() {
+        this.setName("ExtensionLog4j");
         this.setOrder(56);
 
-		if (Constant.isDevBuild() && View.isInitialised()) {
+		if (Constant.isDevBuild()) {
 			// Only enable if this is a developer build, ie build from source
         
 	        scanStatus = new ScanStatus(
@@ -57,7 +75,9 @@ public class ExtensionLog4j extends ExtensionAdaptor {
 	
 	        Logger.getRootLogger().addAppender(new ZapOutputWriter(scanStatus));
 	
-			View.getSingleton().getMainFrame().getMainFooterPanel().addFooterToolbarRightLabel(scanStatus.getCountLabel());
+			if (View.isInitialised()) {
+				View.getSingleton().getMainFrame().getMainFooterPanel().addFooterToolbarRightLabel(scanStatus.getCountLabel());
+			}
 		}
 	}
 	

@@ -38,7 +38,6 @@
 // ZAP: 2014/03/23 Issue 503: Change the footer tabs to display the data
 // with tables instead of lists
 // ZAP: 2015/02/10 Issue 1528: Support user defined font size
-// ZAP: 2016/04/14 Use View to display the HTTP messages
 
 package org.parosproxy.paros.extension.history;
 
@@ -65,7 +64,6 @@ import javax.swing.tree.TreePath;
 import org.apache.log4j.Logger;
 import org.parosproxy.paros.Constant;
 import org.parosproxy.paros.extension.AbstractPanel;
-import org.parosproxy.paros.extension.ViewDelegate;
 import org.parosproxy.paros.model.HistoryReference;
 import org.parosproxy.paros.model.Model;
 import org.parosproxy.paros.model.SiteNode;
@@ -92,6 +90,8 @@ public class LogPanel extends AbstractPanel implements Runnable {
 	private JLabel filterStatus = null;
 	private ZapToggleButton scopeButton = null;
 	
+	private HttpPanel requestPanel = null;
+	private HttpPanel responsePanel = null;
     private ExtensionHistory extension = null;
 
 	private ZapToggleButton linkWithSitesTreeButton;
@@ -99,23 +99,14 @@ public class LogPanel extends AbstractPanel implements Runnable {
 	private LinkWithSitesTreeSelectionListener linkWithSitesTreeSelectionListener;
 
 	private DeselectableButtonGroup historyListFiltersButtonGroup;
-
-	private final ViewDelegate view;
 	
 	/**
-	 * @deprecated (2.5.0) Use {@link #LogPanel(ViewDelegate)} instead.
+	 * This is the default constructor
 	 */
-	@Deprecated
 	public LogPanel() {
-		this(View.getSingleton());
-	}
-
-	public LogPanel(ViewDelegate view) {
 		super();
-		this.view = view;
 		initialize();
 	}
-
 	/**
 	 * This method initializes this
 	 */
@@ -192,6 +183,7 @@ public class LogPanel extends AbstractPanel implements Runnable {
 		}
 		return historyPanel;
 	}
+	/**/
 
 	private javax.swing.JToolBar getPanelToolbar() {
 		if (panelToolbar == null) {
@@ -297,7 +289,7 @@ public class LogPanel extends AbstractPanel implements Runnable {
 
 	public void setLinkWithSitesTreeSelection(boolean enabled) {
 		linkWithSitesTreeButton.setSelected(enabled);
-		final JTree sitesTree = view.getSiteTreePanel().getTreeSite();
+		final JTree sitesTree = View.getSingleton().getSiteTreePanel().getTreeSite();
 		String baseUri = null;
 		if (enabled) {
 			final TreePath selectionPath = sitesTree.getSelectionPath();
@@ -331,7 +323,7 @@ public class LogPanel extends AbstractPanel implements Runnable {
 				@Override
 				public void mouseClicked(java.awt.event.MouseEvent e) {
 					if (SwingUtilities.isLeftMouseButton(e) && e.getClickCount() > 1) {  // double click
-						view.getRequestPanel().setTabFocus();
+						requestPanel.setTabFocus();
 						return;
 				    }
 				}
@@ -421,12 +413,25 @@ public class LogPanel extends AbstractPanel implements Runnable {
     }
     
     
-    /**
-     * @deprecated (2.5.0) No longer used/needed.
-     */
-    @Deprecated
-    @SuppressWarnings("javadoc")
     public void setDisplayPanel(HttpPanel requestPanel, HttpPanel responsePanel) {
+        this.requestPanel = requestPanel;
+        this.responsePanel = responsePanel;
+
+    }
+    
+    private void displayMessage(HttpMessage msg) {
+        
+        if (msg.getRequestHeader().isEmpty()) {
+            requestPanel.clearView(true);
+        } else {
+            requestPanel.setMessage(msg);
+        }
+        
+        if (msg.getResponseHeader().isEmpty()) {
+            responsePanel.clearView(false);
+        } else {
+            responsePanel.setMessage(msg, true);
+        }
     }
 
     @Override
@@ -450,7 +455,7 @@ public class LogPanel extends AbstractPanel implements Runnable {
                 EventQueue.invokeAndWait(new Runnable() {
                     @Override
                     public void run() {
-                        view.displayMessage(msg);
+                        displayMessage(msg);
                         getHistoryReferenceTable().requestFocus();
 
                     }

@@ -35,7 +35,6 @@ public class HighlighterManager extends Observable {
 		observers =  new ArrayList<>();
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void reinitHighlights(LinkedList<HighlightSearchEntry> list) {
 		this.highlights = (LinkedList<HighlightSearchEntry>) list.clone();
 		
@@ -64,7 +63,6 @@ public class HighlighterManager extends Observable {
 	}
 	
 	// TODO: sux
-	@SuppressWarnings("unchecked")
 	public LinkedList<HighlightSearchEntry> getHighlights() {
 		return (LinkedList<HighlightSearchEntry>) highlights.clone();
 	}

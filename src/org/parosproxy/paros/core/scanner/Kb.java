@@ -22,7 +22,6 @@
 // added logger and other minor changes.
 // ZAP: 2012/05/04 Catch CloneNotSupportedException whenever an Uri is cloned,
 //              as introduced with version 3.1 of HttpClient
-// ZAP: 2016/09/20 JavaDoc tweaks
 
 package org.parosproxy.paros.core.scanner;
 
@@ -55,7 +54,7 @@ public class Kb {
     
 	/**
 	 * Get a list of the values matching the key.
-	 * @param key the key for the knowledge base list entry
+	 * @param key
 	 * @return null if there is no previous values.
 	 */
 	// ZAP: Added the type argument.
@@ -67,8 +66,8 @@ public class Kb {
 	/**
 	 * Add the key value pair to KB.  Only unique value will be added to KB.
 	 * 
-	 * @param key the key for the knowledge base entry
-	 * @param value the value of the new entry
+	 * @param key
+	 * @param value
 	 */
 	public synchronized void add(String key, Object value) {
 	    add(mapKb, key, value);
@@ -88,8 +87,12 @@ public class Kb {
 
 	/**
 	 * Get the first item in KB matching the key as a String.
-	 * @param key the key for the knowledge base entry
-	 * @return the entry, or {@code null} if not a {@code String} or does not exist
+	 * @param key
+	 * @return null if not found or the object is not a String.
+	 */
+	/**
+	 * @param key
+	 * @return
 	 */
 	public String getString(String key) {
 	    Object obj = get(key);
@@ -196,9 +199,9 @@ public class Kb {
 	
 	/**
 	 * Generic method for adding into a map
-	 * @param map the map of the knowledge base entries
-	 * @param key the key for the knowledge base entry
-	 * @param value the value of the entry
+	 * @param map
+	 * @param key
+	 * @param value
 	 */
 	// ZAP: Added the type arguments.
 	private void add(TreeMap<String, Object> map, String key, Object value) {
@@ -219,9 +222,9 @@ public class Kb {
 
 	/**
 	 * Generic method for getting values out of a map
-	 * @param map the map of the knowledge base entries
-	 * @param key the key for the knowledge base entry
-	 * @return the values of the entry, might be {@code null}
+	 * @param map
+	 * @param key
+	 * @param value
 	 */
 	// ZAP: Added the type arguments and @SuppressWarnings annotation.
 	@SuppressWarnings("unchecked")

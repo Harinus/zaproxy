@@ -34,7 +34,22 @@ public class PopupMenuEditBreak extends ExtensionPopupMenuItem {
 
 	
     public PopupMenuEditBreak() {
-        super(Constant.messages.getString("brk.edit.popup"));
+        super();
+ 		initialize();
+    }
+
+    
+    public PopupMenuEditBreak(String label) {
+        super(label);
+    }
+
+	public void setExtension(ExtensionBreak extension) {
+		this.extension = extension;
+	}
+
+    
+	private void initialize() {
+        this.setText(Constant.messages.getString("brk.edit.popup"));
         this.addActionListener(new java.awt.event.ActionListener() { 
 
         	@Override
@@ -44,13 +59,14 @@ public class PopupMenuEditBreak extends ExtensionPopupMenuItem {
         });
 	}
 
-	public void setExtension(ExtensionBreak extension) {
-		this.extension = extension;
-	}
-
     @Override
     public boolean isEnableForComponent(Component invoker) {
         if (invoker.getName() != null && invoker.getName().equals(BreakpointsPanel.PANEL_NAME)) {
+            if (extension.canEditBreakpoint()) {
+                this.setEnabled(true);
+            } else {
+                this.setEnabled(false);
+            }
             return true;
         }
         return false;

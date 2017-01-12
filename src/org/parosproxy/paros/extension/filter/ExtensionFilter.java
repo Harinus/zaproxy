@@ -36,7 +36,6 @@
 // ZAP: 2014/01/28 Issue 207: Support keyboard shortcuts 
 // ZAP: 2014/11/26 Fixed an issue in the implementation of searchFilterIndex.
 // ZAP: 2015/03/16 Issue 1525: Further database independence changes
-// ZAP: 2016/06/28 Do not start the timer thread if no filter is enabled
 
 package org.parosproxy.paros.extension.filter;
 
@@ -53,7 +52,7 @@ import org.parosproxy.paros.model.Model;
 import org.parosproxy.paros.network.HttpMessage;
 import org.zaproxy.zap.view.ZapMenuItem;
 
-public class ExtensionFilter extends ExtensionAdaptor implements ProxyListener {
+public class ExtensionFilter extends ExtensionAdaptor implements ProxyListener, Runnable {
 
 	private static final Logger log = Logger.getLogger(ExtensionFilter.class);
 	
@@ -62,7 +61,7 @@ public class ExtensionFilter extends ExtensionAdaptor implements ProxyListener {
 	
 	private ZapMenuItem menuToolsFilter = null;
 	private FilterFactory filterFactory = new FilterFactory();
-	private TimerFilterThread timerFilterThread;
+	private boolean isStop = false;
 	
     public ExtensionFilter() {
         super();
@@ -73,6 +72,11 @@ public class ExtensionFilter extends ExtensionAdaptor implements ProxyListener {
     public void init() {
         this.setName(NAME);
         filterFactory.loadAllFilter();
+        // ZAP: changed to init(Model)
+        // ZAP: Set the name of the extension filter thread.
+        Thread t = new Thread(this, "ZAP-ExtensionFilter");
+        t.setDaemon(true);
+        t.start();
     }
 
     @Override
@@ -124,24 +128,6 @@ public class ExtensionFilter extends ExtensionAdaptor implements ProxyListener {
 					FilterDialog dialog = new FilterDialog(getView().getMainFrame());
 				    dialog.setAllFilters(filterFactory.getAllFilter());
 				    dialog.showDialog(false);
-
-					boolean startThread = false;
-					for (Filter filter : filterFactory.getAllFilter()) {
-						if (filter.isEnabled()) {
-							startThread = true;
-							break;
-						}
-					}
-
-					if (startThread) {
-						if (timerFilterThread == null) {
-							timerFilterThread = new TimerFilterThread(filterFactory.getAllFilter());
-							timerFilterThread.start();
-						}
-					} else if (timerFilterThread != null) {
-						timerFilterThread.setStopped();
-						timerFilterThread = null;
-					}
 				}
 			});
 
@@ -230,11 +216,7 @@ public class ExtensionFilter extends ExtensionAdaptor implements ProxyListener {
      */
     @Override
     public void destroy() {
-        if (timerFilterThread != null) {
-            timerFilterThread.setStopped();
-            timerFilterThread = null;
-        }
-
+        isStop = true;
         Filter filter = null;
         for (int i=0; i<filterFactory.getAllFilter().size(); i++) {
             // ZAP: Removed unnecessary cast.
@@ -247,6 +229,28 @@ public class ExtensionFilter extends ExtensionAdaptor implements ProxyListener {
         
     }
 
+    @Override
+    public void run() {
+        Filter filter = null;
+        
+        while (!isStop) {
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e1) {
+            }
+            for (int i=0; i<filterFactory.getAllFilter().size(); i++) {
+                // ZAP: Removed unnecessary cast.
+                filter = filterFactory.getAllFilter().get(i);
+                try {
+                    if (filter.isEnabled()) {
+                        filter.timer();
+                    }
+                } catch (Exception e) {}
+            }
+        }
+        
+    }
+    
 	@Override
 	public String getAuthor() {
 		return Constant.PAROS_TEAM;
@@ -320,40 +324,4 @@ public class ExtensionFilter extends ExtensionAdaptor implements ProxyListener {
 	public boolean supportsDb(String type) {
     	return true;
     }
-
-	private static class TimerFilterThread extends Thread {
-
-		private final List<Filter> filters;
-		private boolean stop;
-
-		public TimerFilterThread(List<Filter> filters) {
-			super("ZAP-ExtensionFilter");
-			setDaemon(true);
-
-			this.filters = filters;
-		}
-
-		@Override
-		public void run() {
-			while (!stop) {
-				try {
-					Thread.sleep(5000);
-				} catch (InterruptedException e1) {
-				}
-
-				for (Filter filter : filters) {
-					try {
-						if (filter.isEnabled()) {
-							filter.timer();
-						}
-					} catch (Exception e) {
-					}
-				}
-			}
-		}
-
-		public void setStopped() {
-			this.stop = true;
-		}
-	}
 }

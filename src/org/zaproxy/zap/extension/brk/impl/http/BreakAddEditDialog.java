@@ -46,9 +46,8 @@ public class BreakAddEditDialog extends StandardFieldsDialog {
 
 
 	public BreakAddEditDialog(HttpBreakpointsUiManagerInterface breakPointsManager, Frame owner, Dimension dim) {
-		super(owner, "brk.brkpoint.add.title", dim, true);
+		super(owner, "brk.brkpoint.add.title", dim);
 		this.breakPointsManager = breakPointsManager;
-		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 	}
 
 	public void init (HttpBreakpointMessage breakpoint, boolean add) {
@@ -125,11 +124,11 @@ public class BreakAddEditDialog extends StandardFieldsDialog {
 		
 		if (add) {
 		    breakPointsManager.addBreakpoint(brk);
-		    dispose();
+		    breakPointsManager.hideAddDialog();
 		} else {
 		    breakPointsManager.editBreakpoint(breakpoint, brk);
             breakpoint = null;
-		    dispose();
+		    breakPointsManager.hideEditDialog();
 		}
 	}
 
@@ -150,7 +149,11 @@ public class BreakAddEditDialog extends StandardFieldsDialog {
 	
 	@Override
 	public void cancelPressed() {
-		dispose();
+		if ( add ) {
+			breakPointsManager.hideAddDialog(); 
+		} else {
+			breakPointsManager.hideEditDialog(); 
+		}
 	}
 	
 }

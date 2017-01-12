@@ -29,7 +29,6 @@ import org.parosproxy.paros.model.HistoryReference;
 import org.parosproxy.paros.model.Model;
 import org.parosproxy.paros.network.HttpMalformedHeaderException;
 import org.parosproxy.paros.network.HttpMessage;
-import org.zaproxy.zap.extension.api.API;
 import org.zaproxy.zap.extension.api.ApiException;
 import org.zaproxy.zap.extension.api.ApiImplementor;
 
@@ -96,10 +95,9 @@ public abstract class ChallengeCallbackAPI extends ApiImplementor {
     }
 
     /**
-     * Gets the ZAP API URL to a challenge endpoint.
      *
-     * @param challenge the last segment of the path for the challenge endpoint
-     * @return a ZAP API URL to access the the challenge endpoint 
+     * @param challenge
+     * @return
      */
     public String getCallbackUrl(String challenge) {
         String callbackUrl = "http://" 
@@ -118,11 +116,10 @@ public abstract class ChallengeCallbackAPI extends ApiImplementor {
     }
 
     /**
-     * Handles the given message, which might contain a challenge request.
      * 
-     * @param msg the HTTP message of the ZAP API request
-     * @return the HTTP message containing the response to the challenge
-     * @throws ApiException if an error occurred while handling the challenge request
+     * @param msg
+     * @return
+     * @throws ApiException 
      */
     @Override
     public HttpMessage handleShortcut(HttpMessage msg) throws ApiException {
@@ -156,8 +153,14 @@ public abstract class ChallengeCallbackAPI extends ApiImplementor {
             }
             
             // Build the response
-            msg.setResponseHeader(API.getDefaultResponseHeader("text/html", response.length()));
-            msg.getResponseHeader().setHeader("Access-Control-Allow-Origin", "*");
+            msg.setResponseHeader("HTTP/1.1 200 OK\r\n" + 
+                    "Pragma: no-cache\r\n" + 
+                    "Cache-Control: no-cache\r\n" + 
+                    "Access-Control-Allow-Origin: *\r\n" + 
+                    "Access-Control-Allow-Methods: GET,POST,OPTIONS\r\n" + 
+                    "Access-Control-Allow-Headers: ZAP-Header\r\n" + 
+                    "Content-Length: " + response.length() + 
+                    "\r\nContent-Type: text/html;");
             
             msg.setResponseBody(response);
             
@@ -169,11 +172,10 @@ public abstract class ChallengeCallbackAPI extends ApiImplementor {
     }
 
     /**
-     * Registers a new ZAP API challenge.
-     * 
-     * @param challenge the challenge
-     * @param plugin the plugin that will be notified if the challenge is requested
-     * @param attack the message that contains the attack that reproduces the issue
+     *
+     * @param challenge
+     * @param plugin
+     * @param attack
      */
     public void registerCallback(String challenge, ChallengeCallbackPlugin plugin, HttpMessage attack) {
         // Maybe we'va a lot of dirty entries
@@ -183,6 +185,9 @@ public abstract class ChallengeCallbackAPI extends ApiImplementor {
         regCallbacks.put(challenge, new RegisteredCallback(plugin, attack));
     }
     
+    /**
+     * 
+     */
     private static class RegisteredCallback {
         private final ChallengeCallbackPlugin plugin;
         private HistoryReference hRef;

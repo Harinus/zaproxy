@@ -10,9 +10,9 @@ public class ThreadUtils {
 	 * like {@link EventQueue#invokeAndWait(Runnable)}, but can be called from the main thread as
 	 * well.
 	 * 
-	 * @param runnable the {@code Runnable} to be run in the EDT
-	 * @throws InterruptedException if the current thread was interrupted while waiting for the EDT
-	 * @throws InvocationTargetException if an exception occurred while running the {@code Runnable}
+	 * @param runnable
+	 * @throws InterruptedException
+	 * @throws InvocationTargetException
 	 */
 	public static void invokeAndWait(Runnable runnable) throws InvocationTargetException,
 			InterruptedException {

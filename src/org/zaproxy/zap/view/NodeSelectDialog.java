@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTree;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
@@ -62,15 +63,16 @@ public class NodeSelectDialog extends AbstractDialog {
 	private DefaultTreeModel contextTree = null;
 	private DefaultTreeModel siteTree = null;
 	
+	private JScrollPane jScrollPane = null;
+	
 	private SiteNode selectedSiteNode = null;
 	private Target selectedTarget = null;
 	private boolean allowRoot = false;
 	
     /**
-     * Constructs a modal {@code NodeSelectDialog} with the given parent.
-     * 
-     * @param parent the {@code Window} from which the dialog is displayed or {@code null} if this dialog has no parent
-     * @throws HeadlessException when {@code GraphicsEnvironment.isHeadless()} returns {@code true}
+     * @param arg0
+     * @param arg1
+     * @throws HeadlessException
      */
     public NodeSelectDialog(Window parent) throws HeadlessException {
         super(parent, true);	// Modal, ie always on top
@@ -252,7 +254,7 @@ public class NodeSelectDialog extends AbstractDialog {
 			gridBagConstraints15.ipadx = 0;
 			gridBagConstraints15.ipady = 10;
 
-			jPanel.add(new ContextsSitesPanel(getTreeContext(), getTreeSite()), gridBagConstraints15);
+			jPanel.add(getJScrollPane(), gridBagConstraints15);
 			jPanel.add(jLabel2, gridBagConstraints13);
 			jPanel.add(getCancelButton(), gridBagConstraints2);
 			jPanel.add(getSelectButton(), gridBagConstraints3);
@@ -417,6 +419,25 @@ public class NodeSelectDialog extends AbstractDialog {
 
 		}
 		return cancelButton;
+	}
+	
+	/**
+	 * This method initializes jScrollPane	
+	 * 	
+	 * @return javax.swing.JScrollPane	
+	 */    
+	private JScrollPane getJScrollPane() {
+		if (jScrollPane == null) {
+			jScrollPane = new JScrollPane();
+			jScrollPane.setHorizontalScrollBarPolicy(javax.swing.JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+			jScrollPane.setVerticalScrollBarPolicy(javax.swing.JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+			JPanel panel = new JPanel();
+			panel.setLayout(new GridBagLayout());
+			panel.add(this.getTreeContext(), LayoutHelper.getGBC(0, 0, 1, 1.0D, 0.0D));
+			panel.add(this.getTreeSite(), LayoutHelper.getGBC(0, 1, 1, 1.0D, 1.0D));
+			jScrollPane.setViewportView(panel);
+		}
+		return jScrollPane;
 	}
 
 	public boolean isAllowRoot() {

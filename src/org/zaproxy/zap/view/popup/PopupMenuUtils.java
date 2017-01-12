@@ -183,6 +183,7 @@ public final class PopupMenuUtils {
      *    Separator
      *    Menu Entry
      * </pre>
+     * </p>
      * 
      * @param popupMenu the pop up menu whose consecutive separators will be removed
      * @see javax.swing.JPopupMenu.Separator
@@ -232,6 +233,7 @@ public final class PopupMenuUtils {
      *    Separator
      *    Menu Entry
      * </pre>
+     * </p>
      * 
      * @param popupMenu the pop up menu whose top separators will be removed
      * @see javax.swing.JPopupMenu.Separator
@@ -276,6 +278,7 @@ public final class PopupMenuUtils {
      *    Separator
      *    Menu Entry
      * </pre>
+     * </p>
      * 
      * @param popupMenu the pop up menu whose bottom separators will be removed
      * @see javax.swing.JPopupMenu.Separator

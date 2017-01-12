@@ -32,8 +32,6 @@ import org.zaproxy.zap.view.AbstractMultipleOptionsBaseTableModel;
  */
 public class ExcludedParameterTableModel extends AbstractMultipleOptionsBaseTableModel<ScannerParamFilter> {
     
-    private static final long serialVersionUID = 1L;
-
     private static final String[] COLUMN_NAMES = {
             Constant.messages.getString("variant.options.excludedparam.table.header.url"),
             Constant.messages.getString("variant.options.excludedparam.table.header.type"),

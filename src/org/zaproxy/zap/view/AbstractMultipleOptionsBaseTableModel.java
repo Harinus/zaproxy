@@ -26,7 +26,7 @@ import javax.swing.table.AbstractTableModel;
 /**
  *
  * @author yhawke (2014)
- * @param <E> the type of the options
+ * @param <E>
  */
 public abstract class AbstractMultipleOptionsBaseTableModel<E> extends AbstractTableModel {
     

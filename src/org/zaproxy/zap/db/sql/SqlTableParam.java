@@ -71,6 +71,7 @@ public class SqlTableParam extends SqlAbstractTable implements TableParam {
 			
 			try (ResultSet rs = psRead.getPs().executeQuery()) {
 				RecordParam result = build(rs);
+				rs.close();
 				return result;
 			}
 		} catch (SQLException e) {

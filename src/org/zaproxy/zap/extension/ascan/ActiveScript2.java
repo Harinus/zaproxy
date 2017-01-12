@@ -23,7 +23,7 @@ import javax.script.ScriptException;
 
 import org.parosproxy.paros.network.HttpMessage;
 
-public interface ActiveScript2 {
+public interface ActiveScript2 extends ActiveScript {
 
 	void scanNode(ScriptsActiveScanner sas, HttpMessage msg) throws ScriptException;
 }

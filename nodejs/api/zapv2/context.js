@@ -2,7 +2,7 @@
  *
  * ZAP is an HTTP/HTTPS proxy for assessing web application security.
  *
- * Copyright 2016 the ZAP development team
+ * Copyright the ZAP development team
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ function Context(clientApi) {
 
 /**
  * List context names of current session
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.contextList = function (callback) {
   this.api.request('/context/view/contextList/', callback);
@@ -36,6 +37,7 @@ Context.prototype.contextList = function (callback) {
 
 /**
  * List excluded regexs for context
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.excludeRegexs = function (contextname, callback) {
   this.api.request('/context/view/excludeRegexs/', {'contextName' : contextname}, callback);
@@ -43,6 +45,7 @@ Context.prototype.excludeRegexs = function (contextname, callback) {
 
 /**
  * List included regexs for context
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.includeRegexs = function (contextname, callback) {
   this.api.request('/context/view/includeRegexs/', {'contextName' : contextname}, callback);
@@ -50,6 +53,7 @@ Context.prototype.includeRegexs = function (contextname, callback) {
 
 /**
  * List the information about the named context
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.context = function (contextname, callback) {
   this.api.request('/context/view/context/', {'contextName' : contextname}, callback);
@@ -57,6 +61,7 @@ Context.prototype.context = function (contextname, callback) {
 
 /**
  * Lists the names of all built in technologies
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.technologyList = function (callback) {
   this.api.request('/context/view/technologyList/', callback);
@@ -64,6 +69,7 @@ Context.prototype.technologyList = function (callback) {
 
 /**
  * Lists the names of all technologies included in a context
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.includedTechnologyList = function (contextname, callback) {
   this.api.request('/context/view/includedTechnologyList/', {'contextName' : contextname}, callback);
@@ -71,6 +77,7 @@ Context.prototype.includedTechnologyList = function (contextname, callback) {
 
 /**
  * Lists the names of all technologies excluded from a context
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.excludedTechnologyList = function (contextname, callback) {
   this.api.request('/context/view/excludedTechnologyList/', {'contextName' : contextname}, callback);
@@ -78,6 +85,7 @@ Context.prototype.excludedTechnologyList = function (contextname, callback) {
 
 /**
  * Add exclude regex to context
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.excludeFromContext = function (contextname, regex, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
@@ -89,6 +97,7 @@ Context.prototype.excludeFromContext = function (contextname, regex, apikey, cal
 
 /**
  * Add include regex to context
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.includeInContext = function (contextname, regex, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
@@ -99,7 +108,8 @@ Context.prototype.includeInContext = function (contextname, regex, apikey, callb
 };
 
 /**
- * Creates a new context with the given name in the current session
+ * Creates a new context in the current session
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.newContext = function (contextname, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
@@ -110,18 +120,7 @@ Context.prototype.newContext = function (contextname, apikey, callback) {
 };
 
 /**
- * Removes a context in the current session
- **/
-Context.prototype.removeContext = function (contextname, apikey, callback) {
-  if (!callback && typeof(apikey) === 'function') {
-    callback = apikey;
-    apikey = null;
-  }
-  this.api.request('/context/action/removeContext/', {'contextName' : contextname, 'apikey' : apikey}, callback);
-};
-
-/**
- * Exports the context with the given name to a file. If a relative file path is specified it will be resolved against the "contexts" directory in ZAP "home" dir.
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.exportContext = function (contextname, contextfile, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
@@ -132,7 +131,7 @@ Context.prototype.exportContext = function (contextname, contextfile, apikey, ca
 };
 
 /**
- * Imports a context from a file. If a relative file path is specified it will be resolved against the "contexts" directory in ZAP "home" dir.
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.importContext = function (contextfile, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
@@ -144,6 +143,7 @@ Context.prototype.importContext = function (contextfile, apikey, callback) {
 
 /**
  * Includes technologies with the given names, separated by a comma, to a context
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.includeContextTechnologies = function (contextname, technologynames, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
@@ -155,6 +155,7 @@ Context.prototype.includeContextTechnologies = function (contextname, technology
 
 /**
  * Includes all built in technologies in to a context
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.includeAllContextTechnologies = function (contextname, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
@@ -166,6 +167,7 @@ Context.prototype.includeAllContextTechnologies = function (contextname, apikey,
 
 /**
  * Excludes technologies with the given names, separated by a comma, from a context
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.excludeContextTechnologies = function (contextname, technologynames, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
@@ -177,6 +179,7 @@ Context.prototype.excludeContextTechnologies = function (contextname, technology
 
 /**
  * Excludes all built in technologies from a context
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.excludeAllContextTechnologies = function (contextname, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
@@ -188,6 +191,7 @@ Context.prototype.excludeAllContextTechnologies = function (contextname, apikey,
 
 /**
  * Sets a context to in scope (contexts are in scope by default)
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Context.prototype.setContextInScope = function (contextname, booleaninscope, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {

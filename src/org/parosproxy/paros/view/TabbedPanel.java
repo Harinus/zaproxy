@@ -23,28 +23,31 @@
 // time in the main window
 // ZAP: 2013/02/26 Issue 540: Maximised work tabs hidden when response tab
 // position changed
-// ZAP: 2016/04/06 Fix layouts' issues
 
 package org.parosproxy.paros.view;
 
+import javax.swing.JOptionPane;
 import javax.swing.JTabbedPane;
 
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.log4j.Logger;
+import org.parosproxy.paros.Constant;
 import org.parosproxy.paros.model.Model;
-import org.zaproxy.zap.view.ComponentMaximiser;
-import org.zaproxy.zap.view.ComponentMaximiserMouseListener;
 
 public class TabbedPanel extends JTabbedPane {
 
 	private static final long serialVersionUID = 8927990541854169615L;
 
-	private ComponentMaximiserMouseListener componentMaximiserML;
+	private java.awt.Container originalParent = null;
+    private java.awt.Container alternativeParent = null;
+    private java.awt.Component backupChild = null;
+    private Logger log = Logger.getLogger(this.getClass());
     
     /**
 	 * This is the default constructor
 	 */
 	public TabbedPanel() {
 		super();
-		componentMaximiserML = new ComponentMaximiserMouseListener(Model.getSingleton().getOptionsParam().getViewParam());
 		initialize();
 	}
 	/**
@@ -54,25 +57,64 @@ public class TabbedPanel extends JTabbedPane {
 		if (Model.getSingleton().getOptionsParam().getViewParam().getWmUiHandlingOption() == 0) {
 			this.setSize(225, 145);
 		}
-		this.addMouseListener(componentMaximiserML);
+		this.addMouseListener(new java.awt.event.MouseAdapter() { 
+
+			@Override
+			public void mouseClicked(java.awt.event.MouseEvent e) {    
+
+			    if (e.getClickCount() >= 2) {
+			        alternateParent();
+			    }
+
+			}
+		});
 
 	}
 	
 	public void setAlternativeParent(java.awt.Container alternativeParent) {
-		ComponentMaximiser maximiser = alternativeParent != null ? new ComponentMaximiser(alternativeParent) : null;
-		componentMaximiserML.setComponentMaximiser(maximiser);
+	    this.alternativeParent = alternativeParent;
 	}
-
+	
+	private boolean isAlternative = true;
+	
 	public boolean isInAlternativeParent() {
-		ComponentMaximiser maximiser= componentMaximiserML.getComponentMaximiser();
-		if (maximiser == null) {
-			return false;
-		}
-		return maximiser.isComponentMaximised();
+		return !isAlternative;
 	}
 	
 	public void alternateParent() {
-		componentMaximiserML.triggerMaximisation(this);
+	    if (alternativeParent == null) return;
+
+		if (Model.getSingleton().getOptionsParam().getViewParam().getWarnOnTabDoubleClick()) {
+			if (View.getSingleton().showConfirmDialog(Constant.messages.getString("tab.doubleClick.warning"))  
+					!= JOptionPane.OK_OPTION) {
+				// They cancelled the dialog
+				return;
+			}
+			// Only ever warn once
+			Model.getSingleton().getOptionsParam().getViewParam().setWarnOnTabDoubleClick(false);
+			try {
+				Model.getSingleton().getOptionsParam().getViewParam().getConfig().save();
+			} catch (ConfigurationException e) {
+				log.error(e.getMessage(), e);
+			}
+		}
+	    
+	    if (isAlternative) {
+	        
+	        originalParent = this.getParent();
+	        originalParent.remove(this);
+	        backupChild = alternativeParent.getComponent(0);
+	        alternativeParent.remove(backupChild);
+	        alternativeParent.add(this);
+	    } else {
+	        alternativeParent.remove(this);
+	        alternativeParent.add(backupChild);
+	        originalParent.add(this);
+	    }
+        originalParent.validate();
+        alternativeParent.validate();
+        this.validate();
+	    isAlternative = !isAlternative;
 	}
 	
 

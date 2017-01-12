@@ -30,5 +30,4 @@ package org.zaproxy.zap.utils;
  */
 public interface ResettableAutoCloseableIterator<E> extends ResettableIterator<E>, AutoCloseable {
 
-    void close();
 }

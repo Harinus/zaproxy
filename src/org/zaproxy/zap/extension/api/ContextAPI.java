@@ -35,7 +35,6 @@ import org.zaproxy.zap.extension.api.ApiResponseElement;
 import org.zaproxy.zap.extension.api.ApiException.Type;
 import org.zaproxy.zap.extension.authorization.AuthorizationDetectionMethod;
 import org.zaproxy.zap.model.Context;
-import org.zaproxy.zap.model.IllegalContextNameException;
 import org.zaproxy.zap.model.Tech;
 import org.zaproxy.zap.model.TechSet;
 import org.zaproxy.zap.utils.ApiUtils;
@@ -113,6 +112,7 @@ public class ContextAPI extends ApiImplementor {
     public ApiResponse handleApiAction(String name, JSONObject params) throws ApiException {
         log.debug("handleApiAction " + name + " " + params.toString());
         
+        String contextName;
         Context context;
         TechSet techSet;
         String[] techNames;
@@ -121,26 +121,13 @@ public class ContextAPI extends ApiImplementor {
         
         switch(name) {
         case EXCLUDE_FROM_CONTEXT_REGEX:
-        	try {
-				addExcludeToContext(getContext(params), params.getString(REGEX_PARAM));
-			} catch (IllegalArgumentException e) {
-	            throw new ApiException(ApiException.Type.ILLEGAL_PARAMETER, REGEX_PARAM, e);
-			}
+        	addExcludeToContext(getContext(params), params.getString(REGEX_PARAM));
         	break;
         case INCLUDE_IN_CONTEXT_REGEX:
-            try {
-                addIncludeToContext(getContext(params), params.getString(REGEX_PARAM));
-            } catch (IllegalArgumentException e) {
-                throw new ApiException(ApiException.Type.ILLEGAL_PARAMETER, REGEX_PARAM, e);
-            }
+        	addIncludeToContext(getContext(params), params.getString(REGEX_PARAM));
         	break;
         case ACTION_NEW_CONTEXT:
-            String contextName = params.getString(CONTEXT_NAME);
-            try {
-                context = Model.getSingleton().getSession().getNewContext(contextName);
-            } catch (IllegalContextNameException e) {
-                throw new ApiException(ApiException.Type.ALREADY_EXISTS, contextName, e);
-            }
+            context = Model.getSingleton().getSession().getNewContext(params.getString(CONTEXT_NAME));
             Model.getSingleton().getSession().saveContext(context);
             return new ApiResponseElement(CONTEXT_ID, String.valueOf(context.getIndex()));
         case ACTION_REMOVE_CONTEXT:
@@ -164,8 +151,6 @@ public class ContextAPI extends ApiImplementor {
             } else {
             	try {
 					context = Model.getSingleton().getSession().importContext(f);
-				} catch (IllegalContextNameException e) {
-					throw new ApiException(ApiException.Type.BAD_EXTERNAL_DATA, e);
 				} catch (Exception e) {
 					log.error(e.getMessage(), e);
 		            throw new ApiException(ApiException.Type.INTERNAL_ERROR, e.getMessage());
@@ -232,13 +217,7 @@ public class ContextAPI extends ApiImplementor {
     }
 
     private void addExcludeToContext(Context context, String regex) {
-    	List<String> incRegexes = new ArrayList<String>(context.getIncludeInContextRegexs());
-    	if (incRegexes.remove(regex)) {
-    		// Its already explicitly included, removing it from the include list is safer and more useful
-    		context.setIncludeInContextRegexs(incRegexes);
-    	} else {
-            context.addExcludeFromContextRegex(regex);
-    	}
+        context.addExcludeFromContextRegex(regex);
         Model.getSingleton().getSession().saveContext(context);
     }
 
@@ -272,7 +251,7 @@ public class ContextAPI extends ApiImplementor {
             result = new ApiResponseElement(name, contextNames.toString());
             break;
         case VIEW_CONTEXT:
-        	result = new ApiResponseElement(buildResponseFromContext(getContext(params)));
+        	result = buildResponseFromContext(getContext(params));
         	break;
         case VIEW_ALL_TECHS:
         	resultList = new ApiResponseList(name);
@@ -353,7 +332,7 @@ public class ContextAPI extends ApiImplementor {
 		fields.put("postParameterParserClass", c.getPostParamParser().getClass().getCanonicalName());
 		fields.put("postParameterParserConfig", c.getPostParamParser().getConfig());
 		
-		return new ApiResponseSet("context", fields);
+		return new ApiResponseSet(c.getName(), fields);
 	}
 	
 	/**

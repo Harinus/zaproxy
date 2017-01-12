@@ -32,7 +32,8 @@ import javax.swing.table.TableColumnModel;
  * added to the table header of the table. The TableColumnModel is still used to
  * control the view for the table. The manager will invoke the appropriate
  * methods of the TableColumnModel to hide/show columns as required. <br>
- * Code taken from <a href="http://tips4java.wordpress.com/2011/05/08/table-column-manager/">tips4java</a>. Written by Rob
+ * Code taken from {@link http
+ * ://tips4java.wordpress.com/2011/05/08/table-column-manager/}. Written by Rob
  * Camick, which states free usage: You are free to use and/or modify any or all
  * code posted on the Java Tips Weblog without restriction. A credit in the code
  * comments would be nice, but not in any way mandatory.
@@ -98,7 +99,7 @@ public class TableColumnManager implements MouseListener, ActionListener,
 	/**
 	 * Get the popup support.
 	 * 
-	 * @return the popup support
+	 * @returns the popup support
 	 */
 	public boolean isMenuPopup() {
 		return menuPopup;
@@ -108,7 +109,7 @@ public class TableColumnManager implements MouseListener, ActionListener,
 	 * Add/remove support for a popup menu to the table header. The popup menu
 	 * will give the user control over which columns are visible.
 	 * 
-	 * @param menuPopup
+	 * @param menuPopop
 	 *            when true support for displaying a popup menu is added
 	 *            otherwise the popup menu is removed.
 	 */

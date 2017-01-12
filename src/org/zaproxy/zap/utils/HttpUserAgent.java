@@ -18,18 +18,15 @@
 package org.zaproxy.zap.utils;
 
 import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 import org.apache.log4j.Logger;
-import org.parosproxy.paros.Constant;
 
 
 public final class HttpUserAgent {
 	
-	private static final Logger logger = Logger.getLogger(HttpUserAgent.class);
+	private static Logger logger = Logger.getLogger(HttpUserAgent.class);
 	
 	public static final String FireFox = "firefox";
 	public static final String InternetExplorer = "internet explorer";
@@ -38,14 +35,13 @@ public final class HttpUserAgent {
 	public static final String Safari = "safari";
 	
 	private static String searchForInternetExplorerVersion (String userAgent) {
-		return searchVersionInFile(userAgent, "internet-explorer-user-agents.txt");
-	}
-	
-	private static String searchVersionInFile(String userAgent, String file) {
-		try (BufferedReader reader = Files
-				.newBufferedReader(Paths.get(Constant.getZapInstall(), "xml", file), StandardCharsets.UTF_8)) {
-			String browserVersion = "";
-			String line;
+		String line = null;
+		String UserAgentListFile = "xml/internet-explorer-user-agents.txt";
+		String browserVersion = "";
+		BufferedReader reader = null;
+		userAgent = userAgent.toLowerCase();
+		try {
+			reader = new BufferedReader(new FileReader(UserAgentListFile));
 			while ((line = reader.readLine()) != null) {
 				if (line.startsWith("#")) {
 					browserVersion = line.substring(2, line.length()-1);
@@ -56,34 +52,121 @@ public final class HttpUserAgent {
 				}
 			}
 		} catch (IOException e) {
-			logger.debug("Error on opening/reading the file: " + file, e);
+			logger.debug("Error on opening/reading IE user agent file. Error:" + e.getMessage());
+		} finally {
+			if (reader != null){
+				try {
+					reader.close();
+				} catch (IOException e) {
+					logger.debug("Error on closing reader file. Error:" + e.getMessage());
+				}
+			}
 		}
 		return "-1";
 	}
 	
 	private static String searchForFirefoxVersion (String userAgent) {
-		return searchVersionInFile(userAgent, "firefox-user-agents.txt");
+		String line = null;
+		String UserAgentListFile = "xml/firefox-user-agents.txt";
+		String browserVersion = "";
+		BufferedReader reader = null;
+		userAgent = userAgent.toLowerCase();
+		try {
+			reader = new BufferedReader(new FileReader(UserAgentListFile));
+			while ((line = reader.readLine()) != null) {
+				if (line.startsWith("#")) {
+					browserVersion = line.substring(2, line.length()-1);
+					continue;
+				}
+				if (line.toLowerCase().equals(userAgent)) {
+					return browserVersion;
+				}
+			}
+		} catch (IOException e) {
+			logger.debug("Error on opening/reading Firefox user agent file. Error:" + e.getMessage());
+		} finally {
+			if (reader != null){
+				try {
+					reader.close();
+				} catch (IOException e) {
+					logger.debug("Error on closing reader file. Error:" + e.getMessage());
+				}
+			}
+		}
+		return "-1";
 	}
 	
 	private static String searchForChromeVersion (String userAgent) {
-		return searchVersionInFile(userAgent, "chrome-user-agents.txt");
+		String line = null;
+		String UserAgentListFile = "xml/chrome-user-agents.txt";
+		String browserVersion = "";
+		BufferedReader reader = null;
+		userAgent = userAgent.toLowerCase();
+		try {
+			reader = new BufferedReader(new FileReader(UserAgentListFile));
+			while ((line = reader.readLine()) != null) {
+				if (line.startsWith("#")) {
+					browserVersion = line.substring(2, line.length()-1);
+					continue;
+				}
+				if (line.toLowerCase().equals(userAgent)) {
+					return browserVersion;
+				}
+			}
+		} catch (IOException e) {
+			logger.debug("Error on opening/reading Chrome user agent file. Error:" + e.getMessage());
+		} finally {
+			if (reader != null){
+				try {
+					reader.close();
+				} catch (IOException e) {
+					logger.debug("Error on closing reader file. Error:" + e.getMessage());
+				}
+			}
+		}
+		return "-1";
 	}
 	
 	private static String searchForSafariVersion (String userAgent) {
-		return searchVersionInFile(userAgent, "safari-user-agents.txt");
+		String line = null;
+		String UserAgentListFile = "xml/safari-user-agents.txt";
+		String browserVersion = "";
+		BufferedReader reader = null;
+		try {
+			reader = new BufferedReader(new FileReader(UserAgentListFile));
+			while ((line = reader.readLine()) != null) {
+				if (line.startsWith("#")) {
+					browserVersion = line.substring(2, line.length()-1);
+					continue;
+				}
+				if (line.toLowerCase().equals(userAgent)) {
+					return browserVersion;
+				}
+			}
+		} catch (IOException e) {
+			logger.debug("Error on opening/reading Safari user agent file. Error:" + e.getMessage());
+		} finally {
+			if (reader != null){
+				try {
+					reader.close();
+				} catch (IOException e) {
+					logger.debug("Error on closing reader file. Error:" + e.getMessage());
+				}
+			}
+		}
+		return "-1";
 	}
 	
 	/**
 	 * Return what type of browser is used based on the user-agent
-	 * @param userAgent the value of the {@code User-Agent} header
-	 * @return a {@code String} with one of the following values depending on the browser:
-	 *         <ul>
-	 *         <li>Firefox - firefox</li>
-	 *         <li>Internet Explorer - internet explorer</li>
-	 *         <li>Chrome - chrome</li>
-	 *         <li>Safari - safari</li>
-	 *         </ul>
-	 *         Or, if not a known browser the error string {@code -1}.
+	 * @param userAgent
+	 * @return Returns the following values for Firefox, Internet Explorer, Chrome, and Safari:<br/>
+	 * - firefox<br/>
+	 * - internet explorer<br/>
+	 * - chrome<br/>
+	 * - safari<br/>
+	 * <br/>
+	 * If the browser is not know, the error string "-1" will be returned
 	 */
 	public static String getBrowser(String userAgent) {
 		if (userAgent.toLowerCase().contains(FireFox)){
@@ -100,8 +183,10 @@ public final class HttpUserAgent {
 	
 	/**
 	 * Return the version of the browser used based on the user-agent
-	 * @param userAgent the value of the {@code User-Agent} header
-	 * @return a {@code String} with the browser version, or if not a known browser the error string {@code -1}.
+	 * @param userAgent
+	 * @return Returns the browser version<br/>
+	 * <br/>
+	 * If the browser is not know, the error string "-1" will be returned
 	 */
 	public static String getBrowserVersion(String userAgent) {
 		if (userAgent.toLowerCase().contains(FireFox)){

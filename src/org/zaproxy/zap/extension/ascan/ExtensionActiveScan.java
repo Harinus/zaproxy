@@ -44,6 +44,7 @@ import org.apache.log4j.Logger;
 import org.parosproxy.paros.Constant;
 import org.parosproxy.paros.control.Control;
 import org.parosproxy.paros.control.Control.Mode;
+import org.parosproxy.paros.core.scanner.HostProcess;
 import org.parosproxy.paros.core.scanner.ScannerParam;
 import org.parosproxy.paros.extension.CommandLineArgument;
 import org.parosproxy.paros.extension.CommandLineListener;
@@ -58,6 +59,7 @@ import org.parosproxy.paros.view.AbstractParamPanel;
 import org.parosproxy.paros.view.View;
 import org.zaproxy.zap.ZAP;
 import org.zaproxy.zap.extension.alert.ExtensionAlert;
+import org.zaproxy.zap.extension.api.API;
 import org.zaproxy.zap.extension.help.ExtensionHelp;
 import org.zaproxy.zap.extension.script.ExtensionScript;
 import org.zaproxy.zap.extension.script.ScriptType;
@@ -116,25 +118,50 @@ public class ExtensionActiveScan extends ExtensionAdaptor implements
     
 	private ActiveScanAPI activeScanApi;
 
+    /**
+     *
+     */
     public ExtensionActiveScan() {
-        super(NAME);
+        super();
+        initialize();
+    }
+
+    /**
+     * @param name
+     */
+    public ExtensionActiveScan(String name) {
+        super(name);
+    }
+
+    /**
+     * This method initializes this
+     */
+    private void initialize() {
+        this.setName(NAME);
         this.setOrder(28);
         policyManager = new PolicyManager(this);
         ascanController = new ActiveScanController(this);
+        attackModeScanner = new AttackModeScanner(this);
 
     }
     
     @Override
-    public void postInit() {
+    public void optionsLoaded() {
     	policyManager.init();
 
 		if (Control.getSingleton().getMode().equals(Mode.attack)) {
-			if (View.isInitialised() && ! this.getScannerParam().isAllowAttackOnStart()) {
-				// Disable attack mode for safeties sake (when running with the UI)
-	   			View.getSingleton().getMainFrame().getMainToolbarPanel().setMode(Mode.standard);
+			if (this.getScannerParam().isAllowAttackOnStart()) {
+		    	if ( ! View.isInitialised()) {
+		    		// Need to do this in daemon mode or the active scanner wont start
+		    		Control.getSingleton().setMode(Control.Mode.attack);
+		    	}
 			} else {
-				// Needed to make sure the attackModeScanner starts up
-				this.attackModeScanner.sessionModeChanged(Control.getSingleton().getMode());
+				// Disable attack mode for safeties sake
+		    	if (View.isInitialised()) {
+	    			View.getSingleton().getMainFrame().getMainToolbarPanel().setMode(Mode.standard);
+		    	} else {
+	    			Control.getSingleton().setMode(Control.Mode.standard);
+		    	}
 			}
 		}
     }
@@ -142,8 +169,6 @@ public class ExtensionActiveScan extends ExtensionAdaptor implements
     @Override
     public void hook(ExtensionHook extensionHook) {
         super.hook(extensionHook);
-
-        attackModeScanner = new AttackModeScanner(this);
 
         if (getView() != null) {
             extensionHook.getHookMenu().addAnalyseMenuItem(getMenuItemPolicy());
@@ -175,7 +200,7 @@ public class ExtensionActiveScan extends ExtensionAdaptor implements
         this.ascanController.setExtAlert((ExtensionAlert) Control.getSingleton().getExtensionLoader().getExtension(ExtensionAlert.NAME));
         this.activeScanApi = new ActiveScanAPI(this);
         this.activeScanApi.addApiOptions(getScannerParam());
-        extensionHook.addApiImplementor(activeScanApi);
+        API.getInstance().registerApiImplementor(activeScanApi);
     }
 
     @Override
@@ -188,9 +213,6 @@ public class ExtensionActiveScan extends ExtensionAdaptor implements
         String activeActionPrefix = Constant.messages.getString("ascan.activeActionPrefix");
         List<String> activeActions = new ArrayList<>(activeScans.size());
         for (ActiveScan activeScan : activeScans) {
-            if (activeScan instanceof AttackScan && ((AttackScan) activeScan).isDone()) {
-                continue;
-            }
             activeActions.add(MessageFormat.format(activeActionPrefix, activeScan.getDisplayName()));
         }
         return activeActions;
@@ -211,7 +233,6 @@ public class ExtensionActiveScan extends ExtensionAdaptor implements
     /**
      * Start the scanning process beginning to a specific node 
      * @param startNode the start node where the scanning should begin to work
-     * @return the ID of the scan
      */
     public int startScan(SiteNode startNode) {
     	return this.startScan(new Target(startNode, true));
@@ -271,6 +292,9 @@ public class ExtensionActiveScan extends ExtensionAdaptor implements
     	}
     	return id;
 	}
+
+    public void scannerComplete() {
+    }
 
 	private JButton getPolicyButton() {
 		if (policyButton == null) {
@@ -343,7 +367,6 @@ public class ExtensionActiveScan extends ExtensionAdaptor implements
         if (menuItemCustomScan == null) {
             menuItemCustomScan = new ZapMenuItem("menu.tools.ascanadv",
                     KeyStroke.getKeyStroke(KeyEvent.VK_A, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask() | Event.ALT_MASK, false));
-            menuItemCustomScan.setEnabled(Control.getSingleton().getMode() != Mode.safe);
 
             menuItemCustomScan.addActionListener(new java.awt.event.ActionListener() {
                 @Override
@@ -355,6 +378,15 @@ public class ExtensionActiveScan extends ExtensionAdaptor implements
         }
         
         return menuItemCustomScan;
+    }
+
+    public void hostProgress(String hostAndPort, String msg, int percentage) {
+    }
+
+    public void hostComplete(String hostAndPort) {
+    }
+
+    public void hostNewScan(String hostAndPort, HostProcess hostThread) {
     }
 
     @Override
@@ -484,9 +516,6 @@ public class ExtensionActiveScan extends ExtensionAdaptor implements
         
         if (View.isInitialised()) {
         	this.getActiveScanPanel().reset();
-            if (customScanDialog != null) {
-                customScanDialog.reset();
-            }
         }
     }
 

@@ -19,13 +19,14 @@
  */
 package org.zaproxy.zap.view;
 
+import org.apache.log4j.Logger;
 import org.parosproxy.paros.extension.history.HistoryFilter;
 import org.parosproxy.paros.model.SiteNode;
 
 public class SiteTreeFilter {
 
 	private HistoryFilter historyFilter;
-	private boolean inScope;
+	private boolean inScope = false;
 	
 	public SiteTreeFilter(HistoryFilter historyFilter) {
 		this.historyFilter = historyFilter;
@@ -38,6 +39,8 @@ public class SiteTreeFilter {
 	public void setInScope(boolean inScope) {
 		this.inScope = inScope;
 	}
+	
+	Logger logger = Logger.getLogger(getClass());
 	
 	public boolean matches (SiteNode node) {
 		if (node.isRoot()) {

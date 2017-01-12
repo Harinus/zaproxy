@@ -83,7 +83,6 @@ public class SpiderController implements SpiderParserListener {
 	 * Instantiates a new spider controller.
 	 * 
 	 * @param spider the spider
-	 * @param customParsers the custom spider parsers
 	 */
 	protected SpiderController(Spider spider, List<SpiderParser> customParsers) {
 		super();

@@ -61,9 +61,7 @@ public abstract class AbstractDialog extends JDialog {
 	protected AbstractDialog thisDialog = null;
     
     /**
-	 * Constructs an {@code AbstractDialog} with no owner and not modal.
-	 * 
-	 * @throws HeadlessException when {@code GraphicsEnvironment.isHeadless()} returns {@code true}
+	 * @throws java.awt.HeadlessException
 	 */
 	public AbstractDialog() throws HeadlessException {
 		super();
@@ -71,25 +69,22 @@ public abstract class AbstractDialog extends JDialog {
 	}
 
 	/**
-	 * Constructs an {@code AbstractDialog} with the given owner and whether or not it's modal.
-	 * 
-	 * @param owner the {@code Frame} from which the dialog is displayed
-	 * @param modal {@code true} if the dialogue should be modal, {@code false} otherwise
-	 * @throws HeadlessException when {@code GraphicsEnvironment.isHeadless()} returns {@code true}
+	 * Constructor for backwards compatibility
+	 * @param owner
+	 * @param modal
+	 * @throws HeadlessException
 	 */
-	public AbstractDialog(Frame owner, boolean modal) {
+	public AbstractDialog(Frame owner, boolean modal) throws HeadlessException {
 		super(owner, modal);
 		initialize();
 	}
 
 	/**
-	 * Constructs an {@code AbstractDialog} with the given owner and whether or not it's modal.
-	 * 
-	 * @param owner the {@code Window} from which the dialog is displayed or {@code null} if this dialog has no owner
-	 * @param modal {@code true} if the dialogue should be modal, {@code false} otherwise
-	 * @throws HeadlessException when {@code GraphicsEnvironment.isHeadless()} returns {@code true}
+	 * @param owner
+	 * @param modal
+	 * @throws java.awt.HeadlessException
 	 */
-	public AbstractDialog(Window owner, boolean modal) {
+	public AbstractDialog(Window owner, boolean modal) throws HeadlessException {
 		super(owner, Dialog.ModalityType.APPLICATION_MODAL);
 		this.setModal(modal);
 		initialize();

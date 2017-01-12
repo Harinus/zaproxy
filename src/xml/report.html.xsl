@@ -70,11 +70,11 @@
   <xsl:template match="alertitem">
 <p></p>
 <table width="100%" border="0">
-<xsl:apply-templates select="text()|name|desc|uri|method|param|attack|evidence|instances|count|otherinfo|solution|reference|cweid|wascid|sourceid|p|br|wbr|ul|li"/>
+<xsl:apply-templates select="text()|alert|desc|uri|param|attack|evidence|instances|count|otherinfo|solution|reference|cweid|wascid|p|br|wbr|ul|li"/>
 </table>
   </xsl:template>
 
-  <xsl:template match="name[following-sibling::riskcode='3']">
+  <xsl:template match="alert[following-sibling::riskcode='3']">
   <tr bgcolor="red" height="24">	
     <td width="20%" valign="top"><strong><font color="#FFFFFF" size="2" face="Arial, Helvetica, sans-serif">
     <a name="high"/>
@@ -86,7 +86,7 @@
   </tr>
   </xsl:template>
 
-  <xsl:template match="name[following-sibling::riskcode='2']">
+  <xsl:template match="alert[following-sibling::riskcode='2']">
   <!-- ZAP: Changed the medium colour to orange -->
   <tr bgcolor="orange" height="24">	
     <td width="20%" valign="top"><strong><font color="#FFFFFF" size="2" face="Arial, Helvetica, sans-serif">
@@ -99,7 +99,7 @@
   </tr>
 
   </xsl:template>
-  <xsl:template match="name[following-sibling::riskcode='1']">
+  <xsl:template match="alert[following-sibling::riskcode='1']">
   <!-- ZAP: Changed the low colour to yellow -->
   <tr bgcolor="yellow" height="24">
     <a name="low"/>
@@ -112,7 +112,7 @@
   </tr>
   </xsl:template>
   
-  <xsl:template match="name[following-sibling::riskcode='0']">
+  <xsl:template match="alert[following-sibling::riskcode='0']">
   <tr bgcolor="blue" height="24">	
     <td width="20%" valign="top"><strong><font color="#FFFFFF" size="2" face="Arial, Helvetica, sans-serif">
     <a name="info"/>
@@ -162,16 +162,6 @@
   </tr>
   </xsl:template>
 
-  <xsl:template match="method">
-  <tr bgcolor="#e8e8e8" valign="top"> 
-    <td width="20%"><blockquote><font size="2" face="Arial, Helvetica, sans-serif"><p>Method</p></font></blockquote></td>
-    <td width="80%">
-    <font size="2" face="Arial, Helvetica, sans-serif">
-    <p><xsl:apply-templates select="text()|*"/></p>
-    </font></td>
-  </tr>
-  </xsl:template>
-
   <xsl:template match="param">
   <xsl:if test="text() !=''">
   <tr bgcolor="#e8e8e8" valign="top"> 
@@ -211,16 +201,6 @@
   <xsl:template match="instances/instance/uri">
   <tr bgcolor="#e8e8e8" valign="top"> 
     <td width="20%"><blockquote><font size="2" face="Arial, Helvetica, sans-serif"><p>URL</p></font></blockquote></td>
-    <td width="80%">
-    <font size="2" face="Arial, Helvetica, sans-serif">
-    <p><xsl:apply-templates select="text()|*"/></p>
-    </font></td>
-  </tr>
-  </xsl:template>
-
-  <xsl:template match="instances/instance/method">
-  <tr bgcolor="#e8e8e8" valign="top"> 
-    <td width="20%"><blockquote><font size="2" face="Arial, Helvetica, sans-serif"><p>&#160;&#160;&#160;&#160;Method</p></font></blockquote></td>
     <td width="80%">
     <font size="2" face="Arial, Helvetica, sans-serif">
     <p><xsl:apply-templates select="text()|*"/></p>
@@ -326,16 +306,6 @@
     <td width="80%">
     <font size="2" face="Arial, Helvetica, sans-serif">
 	<p><xsl:apply-templates select="text()|*"/></p>
-    </font></td>
-  </tr>
-  </xsl:template>
-  
-  <xsl:template match="sourceid">
-  <tr bgcolor="#e8e8e8" valign="top"> 
-    <td width="20%"><font size="2" face="Arial, Helvetica, sans-serif"><p>Source ID</p></font></td>
-    <td width="80%">
-    <font size="2" face="Arial, Helvetica, sans-serif">
-    <p><xsl:apply-templates select="text()|*"/></p>
     </font></td>
   </tr>
   </xsl:template>

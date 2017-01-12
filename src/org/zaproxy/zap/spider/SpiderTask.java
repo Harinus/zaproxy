@@ -51,13 +51,7 @@ public class SpiderTask implements Runnable {
 
 	/**
 	 * The history reference to the database record where the request message has been partially filled in.
-	 * <p>
-	 * Might be {@code null} if failed to create or persist the message, if the task was already executed or if a clean up was
-	 * performed.
-	 * 
-	 * @see #cleanup()
-	 * @see #deleteHistoryReference()
-	 * @see #fetchResource()
+	 * Cannot be null.
 	 */
 	private HistoryReference reference;
 
@@ -167,22 +161,24 @@ public class SpiderTask implements Runnable {
 
 	@Override
 	public void run() {
-		if (reference == null) {
-			log.warn("Null URI. Skipping crawling task: " + this);
-			parent.postTaskExecution();
-			return;
-		}
 
 		// Log the task start
 		if (log.isDebugEnabled()) {
-			log.debug("Spider Task Started. Processing uri at depth " + depth
-					+ " using already constructed message:  " + reference.getURI());
+			try {
+				log.debug("Spider Task Started. Processing uri at depth " + depth
+						+ " using already constructed message:  " + reference.getURI());
+			} catch (Exception e1) { // Ignore it
+			}
 		}
 
 		// Check if the should stop
 		if (parent.isStopped()) {
 			log.debug("Spider process is stopped. Skipping crawling task...");
-			deleteHistoryReference();
+			parent.postTaskExecution();
+			return;
+		}
+		if (reference == null) {
+			log.warn("Null URI. Skipping crawling task: " + this);
 			parent.postTaskExecution();
 			return;
 		}
@@ -194,8 +190,24 @@ public class SpiderTask implements Runnable {
 		HttpMessage msg = null;
 		try {
 			msg = fetchResource();
+		} catch (ConnectException e) {
+			// This will have been logged at debug level with the URL (which we dont have here)
+			parent.postTaskExecution();
+			return;
+		} catch (SocketTimeoutException e) {
+			// This will have been logged at debug level with the URL (which we dont have here)
+			parent.postTaskExecution();
+			return;
+		} catch (SocketException e) {
+			// This will have been logged at debug level with the URL (which we dont have here)
+			parent.postTaskExecution();
+			return;
+		} catch (UnknownHostException e) {
+			// This will have been logged at debug level with the URL (which we dont have here)
+			parent.postTaskExecution();
+			return;
 		} catch (Exception e) {
-			// The exception was already logged, in fetchResource, with the URL (which we dont have here)
+			log.error("An error occured while fetching the resource: " + e.getMessage(), e);
 			parent.postTaskExecution();
 			return;
 		}
@@ -246,24 +258,6 @@ public class SpiderTask implements Runnable {
 	}
 
 	/**
-	 * Deletes the history reference, should be called when no longer needed.
-	 * <p>
-	 * The call to this method has no effect if the history reference no longer exists (i.e. {@code null}).
-	 *
-	 * @see #reference
-	 */
-	private void deleteHistoryReference() {
-		if (reference == null) {
-			return;
-		}
-
-		if (getExtensionHistory() != null) {
-			getExtensionHistory().delete(reference);
-			reference = null;
-		}
-	}
-
-	/**
 	 * Process a resource, searching for links (uris) to other resources.
 	 * 
 	 * @param message the HTTP Message
@@ -311,16 +305,19 @@ public class SpiderTask implements Runnable {
 	 * @return the response http message
 	 * @throws HttpException the http exception
 	 * @throws IOException Signals that an I/O exception has occurred.
-	 * @throws DatabaseException if an error occurred while reading the HTTP message
+	 * @throws DatabaseException
 	 */
-	private HttpMessage fetchResource() throws IOException, DatabaseException {
+	private HttpMessage fetchResource() throws HttpException, IOException, DatabaseException {
 
 		// Build fetch the request message from the database
 		HttpMessage msg;
 		try {
 			msg = reference.getHttpMessage();
 		} finally {
-			deleteHistoryReference();
+			// Remove the history reference from the database, as it's not used anymore
+			if (getExtensionHistory() != null) {
+				getExtensionHistory().delete(reference);
+			}
 		}
 
 		msg.getRequestHeader().setHeader(HttpHeader.IF_MODIFIED_SINCE, null);
@@ -352,26 +349,11 @@ public class SpiderTask implements Runnable {
 			} catch (UnknownHostException e) {
 				log.debug("Unknown host: " + msg.getRequestHeader().getURI(), e);
 				throw e;
-			} catch (Exception e) {
-				log.error("An error occurred while fetching the resource [" + msg.getRequestHeader().getURI() + "]: "
-							+ e.getMessage(), e);
-				throw e;
 			}
 		}
 
 		return msg;
 
-	}
-
-	/**
-	 * Cleans up the resources used by the task.
-	 * <p>
-	 * Should be called if the task was not executed.
-	 * 
-	 * @since 2.5.0
-	 */
-	void cleanup() {
-		deleteHistoryReference();
 	}
 
 }

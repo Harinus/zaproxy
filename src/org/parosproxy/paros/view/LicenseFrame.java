@@ -50,7 +50,9 @@ public class LicenseFrame extends AbstractFrame {
 	private boolean accepted = false;
 
 	private JPanel jPanel2 = null;
-
+    /**
+     *
+     */
     public LicenseFrame() {
         super();
  		initialize();

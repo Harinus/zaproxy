@@ -32,8 +32,30 @@ public class PopupMenuRemoveSession extends ExtensionPopupMenuItem {
 
     private ExtensionParams extension;
 
+	/**
+     * 
+     */
     public PopupMenuRemoveSession() {
-        super(Constant.messages.getString("params.session.remove.popup"));
+        super();
+ 		initialize();
+    }
+
+    /**
+     * @param label
+     */
+    public PopupMenuRemoveSession(String label) {
+        super(label);
+    }
+
+	public void setExtension(ExtensionParams extension) {
+		this.extension = extension;
+	}
+
+    /**
+	 * This method initialises this
+	 */
+	private void initialize() {
+        this.setText(Constant.messages.getString("params.session.remove.popup"));
         this.addActionListener(new java.awt.event.ActionListener() { 
 
         	@Override
@@ -46,16 +68,9 @@ public class PopupMenuRemoveSession extends ExtensionPopupMenuItem {
 			
 	}
 
-	public void setExtension(ExtensionParams extension) {
-		this.extension = extension;
-	}
-
     @Override
     public boolean isEnableForComponent(Component invoker) {
         if (invoker.getName() != null && invoker.getName().equals(ParamsPanel.PANEL_NAME)) {
-            if (!extension.getParamsPanel().isOnlyOneParamSelected()) {
-                return false;
-            }
         	
         	HtmlParameterStats item = extension.getParamsPanel().getSelectedParam();
         	if (item != null && item.getFlags().contains(HtmlParameter.Flags.session.name())) {

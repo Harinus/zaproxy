@@ -57,11 +57,6 @@
 // ZAP: 2015/04/02 Issue 321: Support multiple databases and Issue 1582: Low memory option
 // ZAP: 2015/09/17 Issue 1914: Support multiple add-on directories
 // ZAP: 2015/11/04 Issue 1920: Report the host:port ZAP is listening on in daemon mode, or exit if it cant
-// ZAP: 2016/03/23 Issue 2331: Custom Context Panels not show in existing contexts after installation of add-on
-// ZAP: 2016/04/22 Issue 2428: Memory leak on session creation/loading
-// ZAP: 2016/05/30 Issue 2494: ZAP Proxy is not showing the HTTP CONNECT Request in history tab
-// ZAP: 2016/09/06 Hook OverrideMessageProxyListener into the Proxy
-// ZAP: 2016/10/06 Issue 2855: Added method to allow for testing when a model is required
 
 package org.parosproxy.paros.control;
 
@@ -121,16 +116,13 @@ public class Control extends AbstractControl implements SessionListener {
 		// ZAP: Start proxy even if no view
 	    Proxy proxy = getProxy(overrides);
 	    getExtensionLoader().hookProxyListener(proxy);
-	    getExtensionLoader().hookOverrideMessageProxyListener(proxy);
 	    getExtensionLoader().hookPersistentConnectionListener(proxy);
-	    getExtensionLoader().hookConnectRequestProxyListeners(proxy);
 		
 		if (view != null) {
 		    // ZAP: Add site map listeners
 		    getExtensionLoader().hookSiteMapListener(view.getSiteTreePanel());
 		}
 		
-		model.postInit();
 		return proxy.startServer();
     }
 
@@ -304,10 +296,6 @@ public class Control extends AbstractControl implements SessionListener {
         control = new Control();
 	}
 
-    // ZAP: Added method to allow for testing when a model is required
-    public static void initSingletonForTesting(Model model) {
-        control = new Control(model, null);
-    }
     
     public void runCommandLine() throws Exception {
 	    log.debug("runCommand");
@@ -337,8 +325,8 @@ public class Control extends AbstractControl implements SessionListener {
 		}
 
 	    log.info("New session file created");
-		control.getExtensionLoader().databaseOpen(model.getDb());
 		control.getExtensionLoader().sessionChangedAllPlugin(session);
+		control.getExtensionLoader().databaseOpen(model.getDb());
 	}
     
     public void runCommandLineOpenSession(String fileName) throws Exception {
@@ -348,8 +336,8 @@ public class Control extends AbstractControl implements SessionListener {
     	Session session = Model.getSingleton().getSession();
     	Model.getSingleton().openSession(fileName);
 	    log.info("Session file opened");
-		control.getExtensionLoader().databaseOpen(model.getDb());
 		control.getExtensionLoader().sessionChangedAllPlugin(session);
+		control.getExtensionLoader().databaseOpen(model.getDb());
     }
 
     public void setExcludeFromProxyUrls(List<String> urls) {
@@ -372,12 +360,12 @@ public class Control extends AbstractControl implements SessionListener {
 		// The session is opened in a thread, so notify the listeners via the callback
     }
 
-	public Session newSession() throws Exception {
+	public Session newSession() {
 	    log.info("New Session");
-		closeSessionAndCreateAndOpenUntitledDb();
+		getExtensionLoader().sessionAboutToChangeAllPlugin(null);
 		final Session session = model.newSession();
-		getExtensionLoader().databaseOpen(model.getDb());
 		getExtensionLoader().sessionChangedAllPlugin(session);
+		getExtensionLoader().databaseOpen(model.getDb());
 
 		if (View.isInitialised()) {
 			SwingUtilities.invokeLater(new Runnable() {
@@ -402,31 +390,12 @@ public class Control extends AbstractControl implements SessionListener {
 		return session;
 	}
 
-    /**
-     * Closes the old session and creates and opens an untitled database.
-     * 
-     * @throws Exception if an error occurred while creating or opening the database.
-     */
-    private void closeSessionAndCreateAndOpenUntitledDb() throws Exception {
-        getExtensionLoader().sessionAboutToChangeAllPlugin(null);
-        model.closeSession();
-        log.info("Create and Open Untitled Db");
-        model.createAndOpenUntitledDb();
-    }
-
     public void newSession(String fileName, final SessionListener callback) {
         log.info("New Session");
-        try {
-            closeSessionAndCreateAndOpenUntitledDb();
-            lastCallback = callback;
-            model.newSession();
-            model.saveSession(fileName, this);
-        } catch (Exception e) {
-            if (lastCallback != null) {
-                lastCallback.sessionSaved(e);
-                lastCallback = null;
-            }
-        }
+        getExtensionLoader().sessionAboutToChangeAllPlugin(null);
+        lastCallback = callback;
+        model.newSession();
+        model.saveSession(fileName, this);
     }
 	
     public void saveSession(final String fileName) {
@@ -455,25 +424,19 @@ public class Control extends AbstractControl implements SessionListener {
 		getExtensionLoader().sessionChangedAllPlugin(null);
 	}
 
-	/**
-	 * @deprecated (2.5.0) Use just {@link #newSession()} (or {@link #newSession(String, SessionListener)}) instead,
-	 *             which already takes care to create and open an untitled database.
-	 */
-	@Deprecated
-	@SuppressWarnings("javadoc")
 	public void createAndOpenUntitledDb() throws ClassNotFoundException, Exception {
 	    log.info("Create and Open Untitled Db");
 		getExtensionLoader().sessionAboutToChangeAllPlugin(null);
 		model.closeSession();
 		model.createAndOpenUntitledDb();
-		getExtensionLoader().databaseOpen(model.getDb());
 		getExtensionLoader().sessionChangedAllPlugin(model.getSession());
+		getExtensionLoader().databaseOpen(model.getDb());
 	}
 
 	@Override
 	public void sessionOpened(File file, Exception e) {
-		getExtensionLoader().databaseOpen(model.getDb());
 		getExtensionLoader().sessionChangedAllPlugin(model.getSession());
+		getExtensionLoader().databaseOpen(model.getDb());
 		if (lastCallback != null) {
 			lastCallback.sessionOpened(file, e);
 			lastCallback = null;
@@ -483,8 +446,8 @@ public class Control extends AbstractControl implements SessionListener {
 
 	@Override
 	public void sessionSaved(Exception e) {
-		getExtensionLoader().databaseOpen(model.getDb());
 		getExtensionLoader().sessionChangedAllPlugin(model.getSession());
+		getExtensionLoader().databaseOpen(model.getDb());
 		if (lastCallback != null) {
 			lastCallback.sessionSaved(e);
 			lastCallback = null;

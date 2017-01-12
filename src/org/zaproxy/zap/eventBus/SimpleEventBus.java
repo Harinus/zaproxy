@@ -5,9 +5,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.log4j.Logger;
 
@@ -21,28 +18,6 @@ public class SimpleEventBus implements EventBus {
 	private Map<String, RegisteredPublisher> nameToPublisher = new HashMap<String, RegisteredPublisher>();
 	private List<RegisteredConsumer> danglingConsumers = new ArrayList<RegisteredConsumer>();
 
-	/**
-	 * The read/write {@code Lock} for registration management and publishing of events.
-	 * 
-	 * @see #regMgmtLock
-	 * @see #publishLock
-	 */
-	private final ReadWriteLock rwLock = new ReentrantReadWriteLock(true);
-
-	/**
-	 * The {@code Lock} for registration management (register and unregister) of publishers and consumers.
-	 * 
-	 * @see #publishLock
-	 */
-	private final Lock regMgmtLock = rwLock.writeLock();
-
-	/**
-	 * The {@code Lock} for publishing of events.
-	 * 
-	 * @see #regMgmtLock
-	 */
-	private final Lock publishLock = rwLock.readLock();
-
 	private static Logger log = Logger.getLogger(SimpleEventBus.class);
 
 	@Override
@@ -53,29 +28,24 @@ public class SimpleEventBus implements EventBus {
 		if (eventTypes == null || eventTypes.length == 0) {
 			throw new InvalidParameterException("At least one event type must be specified");
 		}
-		regMgmtLock.lock();
-		try {
-			if (this.nameToPublisher.get(publisher.getPublisherName()) != null) {
-				throw new InvalidParameterException("Publisher with name " + publisher.getPublisherName() + 
-						" already registered by " + this.nameToPublisher.get(publisher.getPublisherName())
-							.getPublisher().getClass().getCanonicalName());
+		if (this.nameToPublisher.get(publisher.getPublisherName()) != null) {
+			throw new InvalidParameterException("Publisher with name " + publisher.getPublisherName() + 
+					" already registered by " + this.nameToPublisher.get(publisher.getPublisherName())
+						.getPublisher().getClass().getCanonicalName());
+		}
+		log.debug("registerPublisher " + publisher.getPublisherName());
+		
+		RegisteredPublisher regProd = new RegisteredPublisher(publisher, eventTypes);
+		
+		this.nameToPublisher.put(publisher.getPublisherName(), regProd);
+
+		// Check to see if there are any cached consumers
+		for (RegisteredConsumer regCon : this.danglingConsumers) {
+			if (regCon.getPublisherName().equals(publisher.getPublisherName())) {
+				regProd.addComsumer(regCon);
+				this.danglingConsumers.remove(regCon);
+				break;
 			}
-			log.debug("registerPublisher " + publisher.getPublisherName());
-
-			RegisteredPublisher regProd = new RegisteredPublisher(publisher, eventTypes);
-
-			this.nameToPublisher.put(publisher.getPublisherName(), regProd);
-
-			// Check to see if there are any cached consumers
-			for (RegisteredConsumer regCon : this.danglingConsumers) {
-				if (regCon.getPublisherName().equals(publisher.getPublisherName())) {
-					regProd.addComsumer(regCon);
-					this.danglingConsumers.remove(regCon);
-					break;
-				}
-			}
-		} finally {
-			regMgmtLock.unlock();
 		}
 
 	}
@@ -85,17 +55,11 @@ public class SimpleEventBus implements EventBus {
 		if (publisher == null) {
 			throw new InvalidParameterException("Publisher must not be null");
 		}
-
-		regMgmtLock.lock();
-		try {
-			log.debug("unregisterPublisher " + publisher.getPublisherName());
-			RegisteredPublisher regPub = nameToPublisher.remove(publisher.getPublisherName());
-			if (regPub == null) {
-				throw new InvalidParameterException("Publisher with name " + publisher.getPublisherName() + 
-						" not registered");
-			}
-		} finally {
-			regMgmtLock.unlock();
+		log.debug("unregisterPublisher " + publisher.getPublisherName());
+		RegisteredPublisher regPub = nameToPublisher.remove(publisher.getPublisherName());
+		if (regPub == null) {
+			throw new InvalidParameterException("Publisher with name " + publisher.getPublisherName() + 
+					" not registered");
 		}
 	}
 
@@ -110,19 +74,13 @@ public class SimpleEventBus implements EventBus {
 		if (consumer == null) {
 			throw new InvalidParameterException("Consumer must not be null");
 		}
-
-		regMgmtLock.lock();
-		try {
-			log.debug("registerConsumer " + consumer.getClass().getCanonicalName() + " for " + publisherName);
-			RegisteredPublisher publisher = this.nameToPublisher.get(publisherName);
-			if (publisher == null) {
-				// Cache until the publisher registers
-				this.danglingConsumers.add(new RegisteredConsumer(consumer, eventTypes, publisherName));
-			} else {
-				publisher.addComsumer(consumer, eventTypes);
-			}
-		} finally {
-			regMgmtLock.unlock();
+		log.debug("registerConsumer " + consumer.getClass().getCanonicalName() + " for " + publisherName);
+		RegisteredPublisher publisher = this.nameToPublisher.get(publisherName);
+		if (publisher == null) {
+			// Cache until the publisher registers
+			this.danglingConsumers.add(new RegisteredConsumer(consumer, eventTypes, publisherName));
+		} else {
+			publisher.addComsumer(consumer, eventTypes);
 		}
 	}
 
@@ -131,24 +89,18 @@ public class SimpleEventBus implements EventBus {
 		if (consumer == null) {
 			throw new InvalidParameterException("Consumer must not be null");
 		}
-
-		regMgmtLock.lock();
-		try {
-			log.debug("unregisterConsumer " + consumer.getClass().getCanonicalName() + " for " + publisherName);
-			RegisteredPublisher publisher = this.nameToPublisher.get(publisherName);
-			if (publisher != null) {
-				publisher.removeComsumer(consumer);
-			} else {
-				// Check to see if its cached waiting for the publisher
-				for (RegisteredConsumer regCon : this.danglingConsumers) {
-					if (regCon.getConsumer().equals(consumer)) {
-						this.danglingConsumers.remove(regCon);
-						break;
-					}
+		log.debug("unregisterConsumer " + consumer.getClass().getCanonicalName() + " for " + publisherName);
+		RegisteredPublisher publisher = this.nameToPublisher.get(publisherName);
+		if (publisher != null) {
+			publisher.removeComsumer(consumer);
+		} else {
+			// Check to see if its cached waiting for the publisher
+			for (RegisteredConsumer regCon : this.danglingConsumers) {
+				if (regCon.getConsumer().equals(consumer)) {
+					this.danglingConsumers.remove(regCon);
+					break;
 				}
 			}
-		} finally {
-			regMgmtLock.unlock();
 		}
 	}
 
@@ -158,54 +110,48 @@ public class SimpleEventBus implements EventBus {
 		if (publisher == null) {
 			throw new InvalidParameterException("Publisher must not be null");
 		}
+		RegisteredPublisher regPublisher = this.nameToPublisher.get(publisher.getPublisherName());
+		if (regPublisher == null) {
+			throw new InvalidParameterException("Publisher not registered: " + publisher.getPublisherName());
+		}
+		log.debug("publishSyncEvent " + event.getEventType() + " from " + publisher.getPublisherName());
+		boolean foundType = false;
+		for (String type : regPublisher.getEventTypes()) {
+			if (event.getEventType().equals(type)) {
+				foundType = true;
+				break;
+			}
+		}
+		if (! foundType) {
+			throw new InvalidParameterException("Event type: " + event.getEventType() + 
+					" not registered for publisher: " + publisher.getPublisherName());
+		}
 
-		publishLock.lock();
-		try {
-			RegisteredPublisher regPublisher = this.nameToPublisher.get(publisher.getPublisherName());
-			if (regPublisher == null) {
-				throw new InvalidParameterException("Publisher not registered: " + publisher.getPublisherName());
-			}
-			log.debug("publishSyncEvent " + event.getEventType() + " from " + publisher.getPublisherName());
-			boolean foundType = false;
-			for (String type : regPublisher.getEventTypes()) {
-				if (event.getEventType().equals(type)) {
-					foundType = true;
-					break;
-				}
-			}
-			if (! foundType) {
-				throw new InvalidParameterException("Event type: " + event.getEventType() + 
-						" not registered for publisher: " + publisher.getPublisherName());
-			}
-
-			for (RegisteredConsumer regCon : regPublisher.getConsumers()) {
-				String[] eventTypes = regCon.getEventTypes();
-				boolean isListeningforEvent = false;
-				if (eventTypes == null) {
-					// They are listening for all events from this publisher
-					isListeningforEvent = true;
-				} else {
-					for (String type : eventTypes) {
-						if (event.getEventType().equals(type)) {
-							isListeningforEvent = true;
-							break;
-						}
-					}
-				}
-				if (isListeningforEvent) {
-					try {
-						regCon.getConsumer().eventReceived(event);
-					} catch (Exception e) {
-						log.error(e.getMessage(), e);
+		for (RegisteredConsumer regCon : regPublisher.getConsumers()) {
+			String[] eventTypes = regCon.getEventTypes();
+			boolean isListeningforEvent = false;
+			if (eventTypes == null) {
+				// They are listening for all events from this publisher
+				isListeningforEvent = true;
+			} else {
+				for (String type : eventTypes) {
+					if (event.getEventType().equals(type)) {
+						isListeningforEvent = true;
+						break;
 					}
 				}
 			}
-		}finally {
-			publishLock.unlock();
+			if (isListeningforEvent) {
+				try {
+					regCon.getConsumer().eventReceived(event);
+				} catch (Exception e) {
+					log.error(e.getMessage(), e);
+				}
+			}
 		}
 	}
 	
-	private static class RegisteredConsumer {
+	private class RegisteredConsumer {
 		private EventConsumer consumer;
 		private String[] eventTypes;
 		private String publisherName;
@@ -230,7 +176,7 @@ public class SimpleEventBus implements EventBus {
 		}
 	}
 
-	private static class RegisteredPublisher {
+	private class RegisteredPublisher {
 		private EventPublisher publisher;
 		private String[] eventTypes;
 		private List<RegisteredConsumer> consumers = new ArrayList<RegisteredConsumer>();
@@ -257,7 +203,7 @@ public class SimpleEventBus implements EventBus {
 		}
 		public void removeComsumer(EventConsumer consumer) {
 			for (RegisteredConsumer cons : consumers) {
-				if (cons.getConsumer().equals(consumer)) {
+				if (cons.equals(consumer)) {
 					this.consumers.remove(cons);
 					return;
 				}

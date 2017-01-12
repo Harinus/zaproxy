@@ -354,7 +354,7 @@ class AddOnDependencyChecker {
      *
      * @param addOn the add-on that would be updated
      * @return the resulting changes with the add-ons that need to be updated, installed or uninstalled
-     * @since 2.4.3
+     * @since TODO add version
      */
     public AddOnChangesResult calculateUpdateChanges(AddOn addOn) {
         Set<AddOn> addOns = new HashSet<>();
@@ -783,21 +783,6 @@ class AddOnDependencyChecker {
         public Set<Extension> getSoftUnloadExtensions() {
             return softUnloadExtensions;
         }
-
-        /**
-         * Add the contents from the specified results 
-         * @param result
-         */
-		public void addResults(AddOnChangesResult result) {
-	        selectedAddOns.addAll(result.getSelectedAddOns());
-	        oldVersions.addAll(result.oldVersions);
-	        uninstalls.addAll(result.getUninstalls());
-	        newVersions.addAll(result.getNewVersions());
-	        installs.addAll(result.getInstalls());
-	        optionalAddOns.addAll(result.getOptionalAddOns());
-	        unloadExtensions.addAll(result.getUnloadExtensions());
-	        softUnloadExtensions.addAll(result.getSoftUnloadExtensions());
-		}
     }
 
     /**

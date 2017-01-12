@@ -19,7 +19,6 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 // ZAP: 2014/04/01 Changed to allow to set a name to created threads.
-// ZAP: 2016/09/22 JavaDoc tweaks
 package org.parosproxy.paros.common;
 
 
@@ -38,11 +37,8 @@ public class ThreadPool {
 	}
 
 	/**
-	 * Gets a free thread from the thread pool. If there is no free thread, returns {@code null}.
-	 * 
-	 * @param runnable the {@code Runnable} to be run in the thread
-	 * @return the {@code Thread}, already started, with the given {@code Runnable}, or {@code null} if none available.
-	 */
+	Get a free thread from thread pool.  If there is no free thread, return null
+	*/
 	public synchronized Thread getFreeThreadAndRun(Runnable runnable) {
 	    
 		for (int i=0; i<pool.length; i++) {
@@ -60,11 +56,9 @@ public class ThreadPool {
 	}
 
 	/**
-	 * Waits until all threads finish its tasks (at most some time for each).
-	 * <p>
-	 * If not completed yet, do not wait. Each thread should kill itself.
-	 * @param waitInMillis the number of milliseconds to wait for the threads
-	 */
+	Wait until all thread completed tasks (at most some time for each).
+	If not completed yet, do not wait.  Each thread should kill itself.
+	*/
 	public void waitAllThreadComplete(int waitInMillis) {
 		for (int i=0; i<pool.length; i++) {
 			if (pool[i] != null && pool[i].isAlive()) {

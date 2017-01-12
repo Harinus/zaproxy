@@ -20,6 +20,7 @@ package org.zaproxy.zap.extension.spider;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.ImageIcon;
 import javax.swing.table.AbstractTableModel;
 
 import org.parosproxy.paros.Constant;
@@ -43,6 +44,17 @@ public class SpiderPanelTableModel extends AbstractTableModel {
 
 	/** The Spider scan results. */
 	private List<SpiderScanResult> scanResults;
+
+	/** The Constant inScopeIcon. */
+	private static final ImageIcon skippedIcon;
+
+	/** The Constant outOfScopeIcon. */
+	private static final ImageIcon notSkippedIcon;
+
+	static {
+		skippedIcon = new ImageIcon(SpiderPanelTableModel.class.getResource("/resource/icon/16/149.png"));
+		notSkippedIcon = new ImageIcon(SpiderPanelTableModel.class.getResource("/resource/icon/16/152.png"));
+	}
 
 	/**
 	 * Instantiates a new spider panel table model.
@@ -74,7 +86,11 @@ public class SpiderPanelTableModel extends AbstractTableModel {
 		SpiderScanResult result = scanResults.get(row);
 		switch (col) {
 		case 0:
-			return result.processed;
+			if (result.skipped) {
+				return skippedIcon;
+			} else {
+				return notSkippedIcon;
+			}
 		case 1:
 			return result.method;
 		case 2:
@@ -91,8 +107,10 @@ public class SpiderPanelTableModel extends AbstractTableModel {
 	 * Removes all the elements. Method is synchronized internally.
 	 */
 	public void removeAllElements() {
-		scanResults.clear();
-		fireTableDataChanged();
+		synchronized (scanResults) {
+			scanResults.clear();
+			fireTableDataChanged();
+		}
 	}
 
 	/**
@@ -101,12 +119,18 @@ public class SpiderPanelTableModel extends AbstractTableModel {
 	 * @param uri the uri
 	 * @param method the method
 	 * @param flags the flags
-	 * @param skipped {@code true} if the result was skipped, {@code false} otherwise
+	 * @param inScope the in scope
 	 */
-	public void addScanResult(String uri, String method, String flags, boolean skipped) {
-		SpiderScanResult result = new SpiderScanResult(uri, method, flags, !skipped);
-		scanResults.add(result);
-		fireTableRowsInserted(scanResults.size() - 1, scanResults.size() - 1);
+	public void addScanResult(String uri, String method, String flags, boolean inScope) {
+		SpiderScanResult result = new SpiderScanResult(uri, method, flags, inScope);
+		synchronized (scanResults) {
+			scanResults.add(result);
+			try {
+				fireTableRowsInserted(scanResults.size() - 1, scanResults.size() - 1);
+			} catch (IndexOutOfBoundsException e) {
+				// Happens occasionally but seems benign
+			}
+		}
 	}
 
 	/**
@@ -117,10 +141,12 @@ public class SpiderPanelTableModel extends AbstractTableModel {
 	 */
 	public void removesScanResult(String uri, String method) {
 		SpiderScanResult toRemove = new SpiderScanResult(uri, method);
-		int index = scanResults.indexOf(toRemove);
-		if (index >= 0) {
-			scanResults.remove(index);
-			fireTableRowsDeleted(index, index);
+		synchronized (scanResults) {
+			int index = scanResults.indexOf(toRemove);
+			if (index >= 0) {
+				scanResults.remove(index);
+				fireTableRowsDeleted(index, index);
+			}
 		}
 	}
 
@@ -134,7 +160,7 @@ public class SpiderPanelTableModel extends AbstractTableModel {
 	public Class<?> getColumnClass(int columnIndex) {
 		switch (columnIndex) {
 		case 0:
-			return Boolean.class;
+			return ImageIcon.class;
 		case 1:
 			return String.class;
 		case 2:
@@ -161,7 +187,7 @@ public class SpiderPanelTableModel extends AbstractTableModel {
 		protected String flags;
 
 		/** The in scope. */
-		protected boolean processed;
+		protected boolean skipped;
 
 		/**
 		 * Instantiates a new spider scan result.
@@ -181,14 +207,14 @@ public class SpiderPanelTableModel extends AbstractTableModel {
 		 * @param uri the uri
 		 * @param method the method
 		 * @param flags the flags
-		 * @param processed {@code true} if the result was processed, {@code false} otherwise
+		 * @param skipped the in scope
 		 */
-		protected SpiderScanResult(String uri, String method, String flags, boolean processed) {
+		protected SpiderScanResult(String uri, String method, String flags, boolean skipped) {
 			super();
 			this.uri = uri;
 			this.method = method;
 			this.flags = flags;
-			this.processed = processed;
+			this.skipped = skipped;
 		}
 
 		@Override

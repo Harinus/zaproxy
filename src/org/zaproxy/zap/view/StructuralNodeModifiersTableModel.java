@@ -28,7 +28,7 @@ import org.zaproxy.zap.model.StructuralNodeModifier;
 
 /**
  * A table model for holding a set of structural node modifiers, for a {@link Context}.
- * @since 2.4.3
+ * @since TODO add version
  */
 public class StructuralNodeModifiersTableModel extends AbstractMultipleOptionsTableModel<StructuralNodeModifier> {
 
@@ -78,7 +78,6 @@ public class StructuralNodeModifiersTableModel extends AbstractMultipleOptionsTa
 			case StructuralParameter:	return Constant.messages.getString("context.ddn.table.type.struct");
 			case DataDrivenNode:		return Constant.messages.getString("context.ddn.table.type.data");
 			}
-			return null;
 		case 1:
 			return snms.get(rowIndex).getName();
 		case 2:

@@ -26,17 +26,10 @@ public interface MessageLocationConsumer {
      * If this replacer handles the given type of location, for example, when using a AMF replacer it would not
      * handle other locations than AMFLocation and a "text" replacer would not handle AMF locations
      *
-     * @param location the location being checked
-     * @return {@code true} if the location is supported, {@code false} otherwise
+     * @param location
+     * @return
      */
     boolean supports(MessageLocation location);
 
-    /**
-     * If this replacer handles the given type of location, for example, when using a AMF replacer it would not
-     * handle other locations than AMFLocation and a "text" replacer would not handle AMF locations
-     *
-     * @param classLocation the class of the location being checked
-     * @return {@code true} if the location is supported, {@code false} otherwise
-     */
     boolean supports(Class<? extends MessageLocation> classLocation);
 }

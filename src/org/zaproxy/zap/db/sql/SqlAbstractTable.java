@@ -34,6 +34,9 @@ import org.zaproxy.zap.db.sql.SqlDatabaseServer;
     private Connection connection = null;
     private SqlDatabaseServer sqlServer = null;
     
+    /**
+     * 
+     */
     public SqlAbstractTable() {
     }
     

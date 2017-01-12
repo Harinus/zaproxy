@@ -87,6 +87,7 @@ public class ExtensionGlobalExcludeURL extends ExtensionAdaptor  {
 	@Override
 	public void optionsLoaded() {
 		GlobalExcludeURLParam geup = getParam();
+		log.warn("GlobalExcludeURL.optionsLoaded()");
 		geup.parse();
 	}
 	

@@ -19,10 +19,6 @@
  */
 package org.zaproxy.zap;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
 import org.apache.commons.configuration.ConfigurationUtils;
 import org.apache.commons.configuration.DefaultFileSystem;
 import org.apache.log4j.Level;
@@ -122,11 +118,6 @@ abstract class ZapBootstrap {
      * @return the starting message
      */
     protected static String getStartingMessage() {
-        DateFormat dateFormat = SimpleDateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM);
-        StringBuilder strBuilder = new StringBuilder(200);
-        strBuilder.append(Constant.PROGRAM_NAME).append(' ').append(Constant.PROGRAM_VERSION);
-        strBuilder.append(" started ");
-        strBuilder.append(dateFormat.format(new Date()));
-        return strBuilder.toString();
+        return Constant.PROGRAM_NAME + " " + Constant.PROGRAM_VERSION + " started.";
     }
 }

@@ -29,7 +29,6 @@
 // ZAP: 2014/02/21 i1046: The getHttpCookies() method in the HttpResponseHeader does not properly set the domain
 // ZAP: 2014/04/09 i1145: Cookie parsing error if a comma is used
 // ZAP: 2015/02/26 Include json as a text content type
-// ZAP: 2016/06/17 Remove redundant initialisations of instance variables
 
 package org.parosproxy.paros.network;
 
@@ -64,17 +63,17 @@ public class HttpResponseHeader extends HttpHeader {
 	private static final Pattern patternPartialStatusLine 
 		= Pattern.compile("\\A *" + p_VERSION, Pattern.CASE_INSENSITIVE);
 
-    private String mStatusCodeString;
-    private int mStatusCode;
-    private String mReasonPhrase;
+    private String mStatusCodeString = "";
+    private int mStatusCode = 0;
+    private String mReasonPhrase	= "";
 	
     public HttpResponseHeader() {
-        mStatusCodeString = "";
-        mReasonPhrase = "";
+		clear();
     }
 
     public HttpResponseHeader(String data) throws HttpMalformedHeaderException {
-        super(data);
+        this();
+        setMessage(data);
     }
 
     @Override
@@ -122,7 +121,9 @@ public class HttpResponseHeader extends HttpHeader {
 		mStatusCodeString	= matcher.group(2);
 		String tmp 			= matcher.group(3);
 
-		mReasonPhrase = (tmp != null) ? tmp : "";
+		if (tmp != null) {
+			mReasonPhrase		= tmp;
+		}
 		 
         if (!mVersion.equalsIgnoreCase(HTTP10) && !mVersion.equalsIgnoreCase(HTTP11)) {
 			mMalformedHeader = true;

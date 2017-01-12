@@ -69,26 +69,18 @@ import org.apache.commons.logging.LogFactory;
  *  valid) are reused/resent in some ZAP components (e.g. active scanner, fuzzer, ...);
  *  - Added constant PARAM_REMOVE_USER_DEFINED_AUTH_HEADERS;
  *  - Added the public modifier to the class.
- *  - Establish a tunnel if the request has a connection upgrade.
  */
 /**
  * Handles the process of executing a method including authentication, redirection and retries.
  * 
  * @since 3.0
  */
-@SuppressWarnings("deprecation")
 public class HttpMethodDirector {
 
     /**
      * Parameter to remove user defined authentication headers.
      */
     public static final String PARAM_REMOVE_USER_DEFINED_AUTH_HEADERS = "remove.user.defined.auth.headers";
-
-    /**
-     * Parameter to set/obtain the default {@code User-Agent} of internal CONNECT requests (if {@code null} no
-     * {@code User-Agent} is set).
-     */
-    public static final String PARAM_DEFAULT_USER_AGENT_CONNECT_REQUESTS = "method.connect.default.user.agent";
 
     /** The www authenticate challange header. */
     public static final String WWW_AUTH_CHALLENGE = "WWW-Authenticate";
@@ -122,7 +114,7 @@ public class HttpMethodDirector {
     /** Authentication processor */
     private AuthChallengeProcessor authProcessor = null;
 
-    private Set<URI> redirectLocations = null; 
+    private Set redirectLocations = null; 
     
     public HttpMethodDirector(
         final HttpConnectionManager connectionManager,
@@ -155,10 +147,10 @@ public class HttpMethodDirector {
         method.getParams().setDefaults(this.hostConfiguration.getParams());
         
         // Generate default request headers
-        Collection<?> defaults = (Collection<?>)this.hostConfiguration.getParams().
+        Collection defaults = (Collection)this.hostConfiguration.getParams().
 			getParameter(HostParams.DEFAULT_HEADERS);
         if (defaults != null) {
-        	Iterator<?> i = defaults.iterator();
+        	Iterator i = defaults.iterator();
         	while (i.hasNext()) {
         		method.addRequestHeader((Header)i.next());
         	}
@@ -445,11 +437,9 @@ public class HttpMethodDirector {
                         // this connection must be opened before it can be used
                         // This has nothing to do with opening a secure tunnel
                         this.conn.open();
-                        boolean upgrade = isConnectionUpgrade(method);
-                        if ((this.conn.isProxied() && (this.conn.isSecure() || upgrade))
+                        if (this.conn.isProxied() && this.conn.isSecure() 
                         && !(method instanceof ConnectMethod)) {
-                            this.conn.setTunnelRequested(upgrade);
-                            // we need to create a tunnel before we can execute the real method
+                            // we need to create a secure tunnel before we can execute the real method
                             if (!executeConnect()) {
                                 // abort, the connect method failed
                                 return;
@@ -525,20 +515,6 @@ public class HttpMethodDirector {
     }
     
     /**
-     * Tells whether or not the given {@code method} has a {@code Connection} request header with {@code Upgrade} value.
-     *
-     * @param method the method that will be checked
-     * @return {@code true} if the {@code method} has a connection upgrade, {@code false} otherwise
-     */
-    private static boolean isConnectionUpgrade(HttpMethod method) {
-        Header connectionHeader = method.getRequestHeader("connection");
-        if (connectionHeader == null) {
-            return false;
-        }
-        return connectionHeader.getValue().toLowerCase().contains("upgrade");
-    }
-
-    /**
      * Executes a ConnectMethod to establish a tunneled connection.
      * 
      * @return <code>true</code> if the connect was successful
@@ -551,10 +527,6 @@ public class HttpMethodDirector {
 
         this.connectMethod = new ConnectMethod(this.hostConfiguration);
         this.connectMethod.getParams().setDefaults(this.hostConfiguration.getParams());
-        String agent = (String) getParams().getParameter(PARAM_DEFAULT_USER_AGENT_CONNECT_REQUESTS);
-        if (agent != null) {
-            this.connectMethod.setRequestHeader("User-Agent", agent);
-        }
         
         int code;
         for (;;) {
@@ -603,7 +575,9 @@ public class HttpMethodDirector {
     /**
      * Fake response
      * @param method
+     * @return
      */
+    
     private void fakeResponse(final HttpMethod method)
         throws IOException, HttpException {
         // What is to follow is an ugly hack.
@@ -700,7 +674,7 @@ public class HttpMethodDirector {
 
         if (this.params.isParameterFalse(HttpClientParams.ALLOW_CIRCULAR_REDIRECTS)) {
             if (this.redirectLocations == null) {
-                this.redirectLocations = new HashSet<URI>();
+                this.redirectLocations = new HashSet();
             }
             this.redirectLocations.add(currentUri);
             try {
@@ -762,7 +736,7 @@ public class HttpMethodDirector {
         throws MalformedChallengeException, AuthenticationException  
     {
         AuthState authstate = method.getHostAuthState();
-        Map<?, ?> challenges = AuthChallengeParser.parseChallenges(
+        Map challenges = AuthChallengeParser.parseChallenges(
             method.getResponseHeaders(WWW_AUTH_CHALLENGE));
         if (challenges.isEmpty()) {
             LOG.debug("Authentication challenge(s) not found");
@@ -826,7 +800,7 @@ public class HttpMethodDirector {
         throws MalformedChallengeException, AuthenticationException
     {  
         AuthState authstate = method.getProxyAuthState();
-        Map<?, ?> proxyChallenges = AuthChallengeParser.parseChallenges(
+        Map proxyChallenges = AuthChallengeParser.parseChallenges(
             method.getResponseHeaders(PROXY_AUTH_CHALLENGE));
         if (proxyChallenges.isEmpty()) {
             LOG.debug("Proxy authentication challenge(s) not found");

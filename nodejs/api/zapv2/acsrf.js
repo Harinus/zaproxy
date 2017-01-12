@@ -2,7 +2,7 @@
  *
  * ZAP is an HTTP/HTTPS proxy for assessing web application security.
  *
- * Copyright 2016 the ZAP development team
+ * Copyright the ZAP development team
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ function Acsrf(clientApi) {
 
 /**
  * Lists the names of all anti CSRF tokens
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Acsrf.prototype.optionTokensNames = function (callback) {
   this.api.request('/acsrf/view/optionTokensNames/', callback);
@@ -36,6 +37,7 @@ Acsrf.prototype.optionTokensNames = function (callback) {
 
 /**
  * Adds an anti CSRF token with the given name, enabled by default
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Acsrf.prototype.addOptionToken = function (string, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
@@ -47,6 +49,7 @@ Acsrf.prototype.addOptionToken = function (string, apikey, callback) {
 
 /**
  * Removes the anti CSRF token with the given name
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Acsrf.prototype.removeOptionToken = function (string, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
@@ -58,6 +61,7 @@ Acsrf.prototype.removeOptionToken = function (string, apikey, callback) {
 
 /**
  * Generate a form for testing lack of anti CSRF tokens - typically invoked via ZAP
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Acsrf.prototype.genForm = function (hrefid, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {

@@ -43,6 +43,7 @@ import org.parosproxy.paros.model.Session;
 import org.parosproxy.paros.network.HttpMessage;
 import org.parosproxy.paros.network.HttpSender;
 import org.parosproxy.paros.view.View;
+import org.zaproxy.zap.extension.api.API;
 import org.zaproxy.zap.extension.users.ExtensionUserManagement;
 import org.zaproxy.zap.model.Context;
 import org.zaproxy.zap.model.ContextDataFactory;
@@ -130,7 +131,7 @@ public class ExtensionForcedUser extends ExtensionAdaptor implements ContextPane
 
 		// Prepare API
 		this.api = new ForcedUserAPI(this);
-		extensionHook.addApiImplementor(api);
+		API.getInstance().registerApiImplementor(api);
 	}
 
 	private void updateForcedUserModeToggleButtonEnabledState() {

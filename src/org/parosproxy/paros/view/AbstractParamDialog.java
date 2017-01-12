@@ -29,18 +29,13 @@
 // ZAP: 2013/11/28 Issue 923: Allow a footer to be set.
 // ZAP: 2014/02/21 Issue 1043: Custom active scan dialog
 // ZAP: 2014/12/10 Issue 1427: Standardize on [Cancel] [OK] button order
-// ZAP: 2016/11/17 Issue 2701 Added support for additional buttons to support Factory Reset
 
 package org.parosproxy.paros.view;
 
-import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.HeadlessException;
-import java.awt.Insets;
 import java.awt.Window;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.Collection;
 
 import javax.swing.JButton;
@@ -51,7 +46,6 @@ import javax.swing.JPanel;
 import org.parosproxy.paros.Constant;
 import org.parosproxy.paros.extension.AbstractDialog;
 import org.parosproxy.paros.model.Model;
-import org.zaproxy.zap.view.LayoutHelper;
 
 public class AbstractParamDialog extends AbstractDialog {
 
@@ -67,27 +61,19 @@ public class AbstractParamDialog extends AbstractDialog {
     private JLabel footer = null;
     private String rootName = null;
     
-    /**
-     * Constructs an {@code AbstractParamDialog} with no parent and not modal.
-     * 
-     * @throws HeadlessException when {@code GraphicsEnvironment.isHeadless()} returns {@code true}
-     */
     public AbstractParamDialog() {
         super();
         initialize();
     }
 
     /**
-     * Constructs an {@code AbstractParamDialog} with the given parent, title and root node's name and whether or not it's
-     * modal.
-     * 
-     * @param parent the {@code Window} from which the dialog is displayed or {@code null} if this dialog has no parent
-     * @param modal {@code true} if the dialogue should be modal, {@code false} otherwise
-     * @param title the title of the dialogue
-     * @param rootName the name of the root node
-     * @throws HeadlessException when {@code GraphicsEnvironment.isHeadless()} returns {@code true}
+     * @param parent
+     * @param modal
+     * @param title
+     * @param rootName
+     * @throws HeadlessException
      */
-    public AbstractParamDialog(Window parent, boolean modal, String title, String rootName) {
+    public AbstractParamDialog(Window parent, boolean modal, String title, String rootName) throws HeadlessException {
         super(parent, modal);
         this.rootName = rootName;
         initialize();
@@ -120,51 +106,61 @@ public class AbstractParamDialog extends AbstractDialog {
      */
     private javax.swing.JPanel getJContentPane() {
         if (jContentPane == null) {
+            java.awt.GridBagConstraints gridBagConstraints1 = new GridBagConstraints();
 
-            jContentPane = new JPanel();
-            jContentPane.setLayout(new GridBagLayout());
-            jContentPane.add(getJSplitPane(), LayoutHelper.getGBC(0, 0, 1, 1.0, 1.0));
-            
-            // Create the footer
-            JPanel footerPane = new JPanel();
-            footerPane.setLayout(new GridBagLayout());
+            java.awt.GridBagConstraints gridBagConstraints14 = new GridBagConstraints();
+
+            java.awt.GridBagConstraints gridBagConstraints13 = new GridBagConstraints();
+
+            java.awt.GridBagConstraints gridBagConstraints12 = new GridBagConstraints();
+
             footer = new JLabel();
 
-            int x = 0;
-            JButton[]  extraButtons = this.getExtraButtons();
-            if (extraButtons  != null) {
-                for (JButton button : extraButtons) {
-                    footerPane.add(button,  
-                            LayoutHelper.getGBC(x++, 0, 1, 0.0, 0.0, GridBagConstraints.NONE, 
-                                    GridBagConstraints.WEST, new Insets(2, 2, 2, 2)));
-                }
-            }
-
-            footerPane.add(footer,  LayoutHelper.getGBC(x++, 0, 1, 1.0, new Insets(2, 2, 2, 2)));
-            footerPane.add(getBtnCancel(),  
-                    LayoutHelper.getGBC(x++, 0, 1, 0.0, 0.0, GridBagConstraints.NONE, 
-                            GridBagConstraints.EAST, new Insets(2, 2, 2, 2)));
-            footerPane.add(getBtnOK(),  
-                    LayoutHelper.getGBC(x++, 0, 1, 0.0, 0.0, GridBagConstraints.NONE, 
-                            GridBagConstraints.EAST, new Insets(2, 2, 2, 2)));
-
-            jContentPane.add(footerPane,  LayoutHelper.getGBC(0, 1, 1, 1.0, 0.0));
+            jContentPane = new javax.swing.JPanel();
+            jContentPane.setLayout(new GridBagLayout());
+            gridBagConstraints12.gridx = 0;
+            gridBagConstraints12.gridy = 1;
+            gridBagConstraints12.ipadx = 0;
+            gridBagConstraints12.ipady = 0;
+            gridBagConstraints12.anchor = java.awt.GridBagConstraints.WEST;
+            gridBagConstraints12.fill = java.awt.GridBagConstraints.HORIZONTAL;
+            gridBagConstraints12.insets = new java.awt.Insets(2, 2, 2, 2);
+            gridBagConstraints12.weightx = 1.0D;
+            gridBagConstraints13.gridx = 1;
+            gridBagConstraints13.gridy = 1;
+            gridBagConstraints13.ipadx = 0;
+            gridBagConstraints13.ipady = 0;
+            gridBagConstraints13.fill = java.awt.GridBagConstraints.NONE;
+            gridBagConstraints13.anchor = java.awt.GridBagConstraints.EAST;
+            gridBagConstraints13.insets = new java.awt.Insets(2, 2, 2, 2);
+            gridBagConstraints14.gridx = 2;
+            gridBagConstraints14.gridy = 1;
+            gridBagConstraints14.ipadx = 0;
+            gridBagConstraints14.ipady = 0;
+            gridBagConstraints14.anchor = java.awt.GridBagConstraints.EAST;
+            gridBagConstraints14.insets = new java.awt.Insets(2, 2, 2, 2);
+            gridBagConstraints1.weightx = 1.0;
+            gridBagConstraints1.weighty = 1.0;
+            gridBagConstraints1.fill = java.awt.GridBagConstraints.BOTH;
+            gridBagConstraints1.anchor = java.awt.GridBagConstraints.NORTHWEST;
+            gridBagConstraints1.gridwidth = 3;
+            gridBagConstraints1.gridx = 0;
+            gridBagConstraints1.gridy = 0;
+            jContentPane.add(getJSplitPane(), gridBagConstraints1);
+            jContentPane.add(footer, gridBagConstraints12);
+            jContentPane.add(getBtnCancel(), gridBagConstraints13);
+            jContentPane.add(getBtnOK(), gridBagConstraints14);
         }
         
         return jContentPane;
     }
 
     /**
-     * Sets the text to be shown in the footer of the dialogue (along with the OK and Cancel buttons).
      * 
-     * @param text the text to be shown in the footer, might be {@code null} in which case no text is shown.
+     * @param str 
      */
-    public void setFooter(String text) {
-        footer.setText(text);
-    }
-    
-    public JButton[] getExtraButtons() {
-        return null;
+    public void setFooter(String str) {
+        footer.setText(str);
     }
 
     /**
@@ -177,9 +173,9 @@ public class AbstractParamDialog extends AbstractDialog {
             btnOK = new JButton();
             btnOK.setName("btnOK");
             btnOK.setText(Constant.messages.getString("all.button.ok"));
-            btnOK.addActionListener(new ActionListener() {
+            btnOK.addActionListener(new java.awt.event.ActionListener() {
                 @Override
-                public void actionPerformed(ActionEvent e) {
+                public void actionPerformed(java.awt.event.ActionEvent e) {
 
                     try {
                         validateParam();
@@ -189,9 +185,10 @@ public class AbstractParamDialog extends AbstractDialog {
                         AbstractParamDialog.this.setVisible(false);
 
                     } catch (Exception ex) {
-                        View.getSingleton().showWarningDialog(
-                                Constant.messages.getString("options.dialog.save.error", ex.getMessage()));
+                    	// The exception messages should be internationalized!
+                        View.getSingleton().showWarningDialog(ex.getMessage());
                     }
+
                 }
             });
 
@@ -209,9 +206,9 @@ public class AbstractParamDialog extends AbstractDialog {
             btnCancel = new JButton();
             btnCancel.setName("btnCancel");
             btnCancel.setText(Constant.messages.getString("all.button.cancel"));
-            btnCancel.addActionListener(new ActionListener() {
+            btnCancel.addActionListener(new java.awt.event.ActionListener() {
                 @Override
-                public void actionPerformed(ActionEvent e) {
+                public void actionPerformed(java.awt.event.ActionEvent e) {
 
                     exitResult = JOptionPane.CANCEL_OPTION;
                     AbstractParamDialog.this.setVisible(false);
@@ -241,38 +238,21 @@ public class AbstractParamDialog extends AbstractDialog {
 
 
     /**
-     * Adds the given panel with the given name positioned under the given parents (or root node if none given).
-     * <p>
-     * If not sorted the panel is appended to existing panels.
+     * If multiple name use the same panel
      *
-     * @param parentParams the name of the parent nodes of the panel, might be {@code null}.
-     * @param name the name of the panel, must not be {@code null}.
-     * @param panel the panel, must not be {@code null}.
-     * @param sort {@code true} if the panel should be added in alphabetic order, {@code false} otherwise
+     * @param parentParams
+     * @param name
+     * @param panel
      */
+    // ZAP: Added sort option
     public void addParamPanel(String[] parentParams, String name, AbstractParamPanel panel, boolean sort) {
     	this.getJSplitPane().addParamPanel(parentParams, name, panel, sort);
     }
 
-    /**
-     * Adds the given panel, with its {@link Component#getName() own name}, positioned under the given parents (or root
-     * node if none given).
-     * <p>
-     * If not sorted the panel is appended to existing panels.
-     *
-     * @param parentParams the name of the parent nodes of the panel, might be {@code null}.
-     * @param panel the panel, must not be {@code null}.
-     * @param sort {@code true} if the panel should be added in alphabetic order, {@code false} otherwise
-     */
     public void addParamPanel(String[] parentParams, AbstractParamPanel panel, boolean sort) {
         addParamPanel(parentParams, panel.getName(), panel, sort);
     }
 
-    /**
-     * Removes the given panel.
-     *
-     * @param panel the panel that will be removed
-     */
     public void removeParamPanel(AbstractParamPanel panel) {
     	this.getJSplitPane().removeParamPanel(panel);
     }
@@ -283,64 +263,37 @@ public class AbstractParamDialog extends AbstractDialog {
     }
 
     /**
-     * Shows the panel with the given name.
-     * <p>
-     * Nothing happens if there's no panel with the given name (or the given name is empty or {@code null}).
-     * <p>
-     * The previously shown panel (if any) is notified that it will be hidden.
      * 
-     * @param name the name of the panel to be shown
+     * @param name 
      */
     public void showParamPanel(String name) {
     	this.getJSplitPane().showParamPanel(name);
     }
 
     /**
-     * Shows the panel with the given name.
-     * <p>
-     * The previously shown panel (if any) is notified that it will be hidden.
      * 
-     * @param panel the panel that will be notified that is now shown, must not be {@code null}.
-     * @param name the name of the panel that will be shown, must not be {@code null}.
+     * @param panel
+     * @param name 
      */
     public void showParamPanel(AbstractParamPanel panel, String name) {
     	this.getJSplitPane().showParamPanel(panel, name);
     }
 
-    /**
-     * Initialises all panels with the given object.
-     *
-     * @param obj the object that contains the data to be shown in the panels and save them
-     * @see #validateParam()
-     * @see #saveParam()
-     */
     public void initParam(Object obj) {
     	this.getJSplitPane().initParam(obj);
     }
 
     /**
-     * Validates all panels, throwing an exception if there's any validation error.
-     * <p>
-     * The message of the exception can be shown in GUI components (for example, an error dialogue) callers can expect an
-     * internationalised message.
-     * 
-     * @throws Exception if there's any validation error.
-     * @see #initParam(Object)
-     * @see #saveParam()
+     * This method is to be overrided by subclass.
+     *
      */
     public void validateParam() throws Exception {
     	this.getJSplitPane().validateParam();
     }
 
     /**
-     * Saves the data of all panels, throwing an exception if there's any error.
-     * <p>
-     * The message of the exception can be shown in GUI components (for example, an error dialogue) callers can expect an
-     * internationalised message.
-     * 
-     * @throws Exception if there's any error while saving the data.
-     * @see #initParam(Object)
-     * @see #validateParam()
+     * This method is to be overrided by subclass.
+     *
      */
     public void saveParam() throws Exception {
     	this.getJSplitPane().saveParam();

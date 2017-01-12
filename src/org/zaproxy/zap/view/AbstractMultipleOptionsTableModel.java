@@ -22,11 +22,9 @@ package org.zaproxy.zap.view;
 import java.util.Iterator;
 import javax.swing.event.TableModelEvent;
 
-import org.zaproxy.zap.utils.EnableableInterface;
+import org.zaproxy.zap.utils.Enableable;
 
-public abstract class AbstractMultipleOptionsTableModel<E extends EnableableInterface> extends AbstractMultipleOptionsBaseTableModel<E> {
-
-    private static final long serialVersionUID = 1L;
+public abstract class AbstractMultipleOptionsTableModel<E extends Enableable> extends AbstractMultipleOptionsBaseTableModel<E> {
 
     public AbstractMultipleOptionsTableModel() {
         super();

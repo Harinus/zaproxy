@@ -62,14 +62,6 @@
 // ZAP: 2015/04/13 Add default editor and renderer for TextMessageLocationHighlight
 // ZAP: 2015/08/11 Fix the removal of context panels
 // ZAP: 2015/09/07 Start GUI on EDT
-// ZAP: 2015/11/26 Issue 2084: Warn users if they are probably using out of date versions
-// ZAP: 2016/03/16 Add StatusUI handling
-// ZAP: 2016/03/22 Allow to remove ContextPanelFactory
-// ZAP: 2016/03/23 Issue 2331: Custom Context Panels not show in existing contexts after installation of add-on
-// ZAP: 2016/04/04 Do not require a restart to show/hide the tool bar
-// ZAP: 2016/04/06 Fix layouts' issues
-// ZAP: 2016/04/14 Allow to display a message
-// ZAP: 2016/10/26 Create UI shared context in the session dialogue when adding a context
 
 package org.parosproxy.paros.view;
 
@@ -82,11 +74,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.MissingResourceException;
 import java.util.Vector;
 
 import javax.swing.ImageIcon;
@@ -110,16 +99,11 @@ import org.parosproxy.paros.extension.ExtensionPopupMenuItem;
 import org.parosproxy.paros.extension.ViewDelegate;
 import org.parosproxy.paros.extension.option.OptionsParamView;
 import org.parosproxy.paros.model.Model;
-import org.parosproxy.paros.model.OptionsParam;
 import org.parosproxy.paros.model.Session;
-import org.parosproxy.paros.network.HttpMessage;
-import org.zaproxy.zap.control.AddOn;
-import org.zaproxy.zap.control.AddOn.Status;
 import org.zaproxy.zap.extension.ExtensionPopupMenu;
 import org.zaproxy.zap.extension.help.ExtensionHelp;
 import org.zaproxy.zap.extension.httppanel.HttpPanelRequest;
 import org.zaproxy.zap.extension.httppanel.HttpPanelResponse;
-import org.zaproxy.zap.extension.httppanel.Message;
 import org.zaproxy.zap.extension.keyboard.ExtensionKeyboard;
 import org.zaproxy.zap.model.Context;
 import org.zaproxy.zap.view.AbstractContextPropertiesPanel;
@@ -130,11 +114,12 @@ import org.zaproxy.zap.view.ContextListPanel;
 import org.zaproxy.zap.view.ContextPanelFactory;
 import org.zaproxy.zap.view.ContextStructurePanel;
 import org.zaproxy.zap.view.ContextTechnologyPanel;
+import org.zaproxy.zap.view.MessagePanelsPositionController;
 import org.zaproxy.zap.view.SessionExcludeFromProxyPanel;
 import org.zaproxy.zap.view.SessionExcludeFromScanPanel;
 import org.zaproxy.zap.view.SessionExcludeFromSpiderPanel;
 import org.zaproxy.zap.view.SplashScreen;
-import org.zaproxy.zap.view.StatusUI;
+import org.zaproxy.zap.view.TabbedPanel2;
 import org.zaproxy.zap.view.ZapMenuItem;
 import org.zaproxy.zap.view.messagelocation.MessageLocationHighlightRenderersEditors;
 import org.zaproxy.zap.view.messagelocation.TextMessageLocationHighlight;
@@ -143,26 +128,8 @@ import org.zaproxy.zap.view.messagelocation.TextMessageLocationHighlightRenderer
 
 public class View implements ViewDelegate {
 
-    /**
-     * @deprecated (2.5.0) Use {@link WorkbenchPanel.Layout#EXPAND_SELECT} instead.
-     * @see #getMainFrame()
-     * @see MainFrame#setWorkbenchLayout(org.parosproxy.paros.view.WorkbenchPanel.Layout)
-     */
-    @Deprecated
     public static final int DISPLAY_OPTION_LEFT_FULL = 0;
-    /**
-     * @deprecated (2.5.0) Use {@link WorkbenchPanel.Layout#EXPAND_STATUS} instead.
-     * @see #getMainFrame()
-     * @see MainFrame#setWorkbenchLayout(org.parosproxy.paros.view.WorkbenchPanel.Layout)
-     */
-    @Deprecated
     public static final int DISPLAY_OPTION_BOTTOM_FULL = 1;
-    /**
-     * @deprecated (2.5.0) Use {@link WorkbenchPanel.Layout#FULL} instead.
-     * @see #getMainFrame()
-     * @see MainFrame#setWorkbenchLayout(org.parosproxy.paros.view.WorkbenchPanel.Layout)
-     */
-    @Deprecated
     public static final int DISPLAY_OPTION_TOP_FULL = 2;
 
     public static final int DISPLAY_OPTION_ICONNAMES = 0;
@@ -190,22 +157,15 @@ public class View implements ViewDelegate {
 
     private List<AbstractContextPropertiesPanel> contextPanels = new ArrayList<>();
     private List<ContextPanelFactory> contextPanelFactories = new ArrayList<>();
-    /**
-     * A map containing the {@link AbstractContextPropertiesPanel context panels} created by a {@link ContextPanelFactory
-     * context panel factory}, being the latter the key and the former the value (a {@code List} with the panels).
-     * <p>
-     * The map is used to remove the panels created when the factory is removed.
-     */
-    private Map<ContextPanelFactory, List<AbstractContextPropertiesPanel>> contextPanelFactoriesPanels = new HashMap<>();
+
+    private static int displayOption = DISPLAY_OPTION_BOTTOM_FULL;
 
     private static final Logger logger = Logger.getLogger(View.class);
 
+    private MessagePanelsPositionController messagePanelsPositionController;
+
     // ZAP: splash screen
     private SplashScreen splashScreen = null;
-
-    private Map<AddOn.Status, StatusUI> statusMap = new HashMap<>();
-
-    private boolean postInitialisation;
 
     /**
      * @return Returns the mainFrame.
@@ -227,33 +187,23 @@ public class View implements ViewDelegate {
     //	return responsePanel;
     //}
 
-
     /**
-     * @deprecated (2.5.0) Use {@link MainFrame#setWorkbenchLayout(org.parosproxy.paros.view.WorkbenchPanel.Layout)}
-     *             instead.
-     * @see #getMainFrame()
+     * Sets the displayOption.
      */
-    @Deprecated
-    @SuppressWarnings("javadoc")
     public static void setDisplayOption(int displayOption) {
-        View.getSingleton().getMainFrame().setWorkbenchLayout(WorkbenchPanel.Layout.getLayout(displayOption));
+        View.displayOption = displayOption;
     }
 
     /**
-     * @deprecated (2.5.0) Use {@link MainFrame#getWorkbenchLayout()} instead.
-     * @see #getMainFrame()
+     * Return the current displayOption.
      */
-    @Deprecated
-    @SuppressWarnings("javadoc")
     public static int getDisplayOption() {
-        return View.getSingleton().getMainFrame().getWorkbenchLayout().getId();
+        return View.displayOption;
     }
 
 //  ZAP: Removed method changeDisplayOption(int)
     public void init() {
-        OptionsParam options = Model.getSingleton().getOptionsParam();
-        mainFrame = new MainFrame(options, getRequestPanel(), getResponsePanel());
-        mainFrame.getWorkbench().addPanel(View.getSingleton().getSiteTreePanel(), WorkbenchPanel.PanelType.SELECT);
+        mainFrame = new MainFrame(displayOption);
 
         // Install default editor and renderer for TextMessageLocationHighlight
         MessageLocationHighlightRenderersEditors.getInstance().addEditor(
@@ -262,29 +212,23 @@ public class View implements ViewDelegate {
         MessageLocationHighlightRenderersEditors.getInstance().addRenderer(
                 TextMessageLocationHighlight.class,
                 new TextMessageLocationHighlightRenderer());
-        
-        String statusString;
-        for(Status status : AddOn.Status.values()) {     	
-        	//Try/catch in case AddOn.Status gets out of sync with cfu.status i18n entries
-        	try {
-        		statusString = Constant.messages.getString("cfu.status." + status.toString());
-        	} catch (MissingResourceException mre) {
-        		statusString = status.toString();
-        		
-        		String errString="Caught " + mre.getClass().getName() + " " + mre.getMessage() + 
-						" when looking for i18n string: cfu.status." + statusString;
-        		if (Constant.isDevBuild()) {
-        			logger.error(errString);
-        		} else {
-        			logger.warn(errString);
-        		}
-        	}
-        	statusMap.put(status, new StatusUI(status, statusString));
-        }
+
+        getWorkbench().getTabbedWork().setAlternativeParent(mainFrame.getPaneDisplay());
+        getWorkbench().getTabbedStatus().setAlternativeParent(mainFrame.getPaneDisplay());
+        getWorkbench().getTabbedSelect().setAlternativeParent(mainFrame.getPaneDisplay());
+
+        // adds the Request/Response representation buttons in ZAP toolbar
+        getMessagePanelsPositionController().restoreState();
     }
 
     public void postInit() {
-        mainFrame.getWorkbench().addPanel(getOutputPanel(), WorkbenchPanel.PanelType.STATUS);
+      // Note: addTab function calls have been moved to WorkbenchPanel.java because
+        // of the Full Layout support, but this line is still needed for the 'History'
+        // tab to be the currently selected tab; otherwise it's the 'Output' tab.
+        getWorkbench().getTabbedStatus().addTab(getOutputPanel().getName(), getOutputPanel().getIcon(), getOutputPanel());
+
+        // restore the state of Request/Response layout: side by side or above each other.
+        getMessagePanelsPositionController().restoreState();
 
         refreshTabViewMenus();
 
@@ -326,20 +270,22 @@ public class View implements ViewDelegate {
         });
         mainFrame.getMainMenuBar().getMenuView().add(unpinAllMenu);
 
-        postInitialisation = true;
     }
 
     /**
-     * @deprecated (2.5.0) No longer in use/working, use
-     *             {@link MainFrame#setResponsePanelPosition(org.parosproxy.paros.view.WorkbenchPanel.ResponsePanelPosition)}
-     *             instead.
-     * @since 2.1.0
-     * @see #getMainFrame()
+     * Return the MessagePanelsPositionController so other classes can also
+     * restore state of the Request/Response layout.
+     * @return the controller 
      */
-    @Deprecated
-    @SuppressWarnings("javadoc")
-    public org.zaproxy.zap.view.MessagePanelsPositionController getMessagePanelsPositionController() {
-        return new org.zaproxy.zap.view.MessagePanelsPositionController(null, null, null, null);
+    public MessagePanelsPositionController getMessagePanelsPositionController() {
+        if (messagePanelsPositionController == null) {
+            messagePanelsPositionController = new MessagePanelsPositionController(
+                    getRequestPanel(),
+                    getResponsePanel(),
+                    mainFrame,
+                    getWorkbench());
+        }
+        return messagePanelsPositionController;
     }
 
     public void refreshTabViewMenus() {
@@ -352,54 +298,88 @@ public class View implements ViewDelegate {
 
         ExtensionKeyboard extKey = (ExtensionKeyboard) Control.getSingleton().getExtensionLoader().getExtension(ExtensionKeyboard.NAME);
 
-        for (AbstractPanel panel : getWorkbench().getSortedPanels(WorkbenchPanel.PanelType.SELECT)) {
-            registerMenu(extKey, panel);
+        for (Component tab : getWorkbench().getTabbedSelect().getSortedTabList()) {
+            registerMenu(extKey, getWorkbench().getTabbedSelect(), tab);
         }
         menuShowTabs.addSeparator();
-        for (AbstractPanel panel : getWorkbench().getSortedPanels(WorkbenchPanel.PanelType.WORK)) {
-            registerMenu(extKey, panel);
+        for (Component tab : getWorkbench().getTabbedWork().getSortedTabList()) {
+            registerMenu(extKey, getWorkbench().getTabbedWork(), tab);
         }
         menuShowTabs.addSeparator();
-        for (AbstractPanel panel : getWorkbench().getSortedPanels(WorkbenchPanel.PanelType.STATUS)) {
-            registerMenu(extKey, panel);
+        for (Component tab : getWorkbench().getTabbedStatus().getSortedTabList()) {
+            registerMenu(extKey, getWorkbench().getTabbedStatus(), tab);
         }
     }
 
-    private void registerMenu(ExtensionKeyboard extKey, final AbstractPanel ap) {
-        ZapMenuItem tabMenu = new ZapMenuItem(
-                ap.getClass().getName(), MessageFormat.format(Constant.messages.getString("menu.view.tab"), ap.getName()),
-                ap.getDefaultAccelerator());
-        tabMenu.setMnemonic(ap.getMnemonic());
-        if (ap.getIcon() != null) {
-            tabMenu.setIcon(ap.getIcon());
-        }
-        tabMenu.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                getWorkbench().showPanel(ap);
+    private void registerMenu(ExtensionKeyboard extKey, final TabbedPanel2 parent, final Component tab) {
+        if (tab instanceof AbstractPanel) {
+            final AbstractPanel ap = (AbstractPanel) tab;
+            ZapMenuItem tabMenu = new ZapMenuItem(
+                    tab.getClass().getName(), MessageFormat.format(Constant.messages.getString("menu.view.tab"), tab.getName()),
+                    ap.getDefaultAccelerator());
+            tabMenu.setMnemonic(ap.getMnemonic());
+            if (ap.getIcon() != null) {
+                tabMenu.setIcon(ap.getIcon());
             }
-        });
+            tabMenu.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    parent.setVisible(tab, true);
+                    ap.setTabFocus();
+                }
+            });
 
-        menuShowTabs.add(tabMenu);
-        if (extKey != null) {
-            extKey.registerMenuItem(tabMenu);
+            menuShowTabs.add(tabMenu);
+            if (extKey != null) {
+                extKey.registerMenuItem(tabMenu);
+            }
+
         }
     }
 
     public void showAllTabs() {
-        getWorkbench().setPanelsVisible(true);
+        for (Component tab : getWorkbench().getTabbedSelect().getTabList()) {
+            setTabVisible(getWorkbench().getTabbedSelect(), tab, true);
+        }
+        for (Component tab : getWorkbench().getTabbedWork().getTabList()) {
+            setTabVisible(getWorkbench().getTabbedWork(), tab, true);
+        }
+        for (Component tab : getWorkbench().getTabbedStatus().getTabList()) {
+            setTabVisible(getWorkbench().getTabbedStatus(), tab, true);
+        }
     }
 
     public void hideAllTabs() {
-        getWorkbench().setPanelsVisible(false);
+        for (Component tab : getWorkbench().getTabbedSelect().getTabList()) {
+            setTabVisible(getWorkbench().getTabbedSelect(), tab, false);
+        }
+        for (Component tab : getWorkbench().getTabbedWork().getTabList()) {
+            setTabVisible(getWorkbench().getTabbedWork(), tab, false);
+        }
+        for (Component tab : getWorkbench().getTabbedStatus().getTabList()) {
+            setTabVisible(getWorkbench().getTabbedStatus(), tab, false);
+        }
     }
 
     public void pinAllTabs() {
-        getWorkbench().pinVisiblePanels();
+        getWorkbench().getTabbedSelect().pinVisibleTabs();
+        getWorkbench().getTabbedWork().pinVisibleTabs();
+        getWorkbench().getTabbedStatus().pinVisibleTabs();
     }
 
     public void unpinAllTabs() {
-        getWorkbench().unpinVisiblePanels();
+        getWorkbench().getTabbedSelect().unpinTabs();
+        getWorkbench().getTabbedWork().unpinTabs();
+        getWorkbench().getTabbedStatus().unpinTabs();
+    }
+
+    private void setTabVisible(final TabbedPanel2 parent, Component tab, boolean tabVisible) {
+        if (tab instanceof AbstractPanel) {
+            AbstractPanel ap = (AbstractPanel) tab;
+            if (ap.isHideable() && !ap.isPinned()) {
+                parent.setVisible(tab, tabVisible);
+            }
+        }
     }
 
     /**
@@ -511,10 +491,6 @@ public class View implements ViewDelegate {
         this.getRememberCheckbox().setSelected(false);
         return JOptionPane.showConfirmDialog(parent,
                 new Object[]{msg + "\n", this.getRememberCheckbox()}, Constant.PROGRAM_NAME, JOptionPane.YES_NO_OPTION);
-    }
-
-    public int showYesNoDialog(Window parent, Object[] objs) {
-        return JOptionPane.showConfirmDialog(parent, objs, Constant.PROGRAM_NAME, JOptionPane.YES_NO_OPTION);
     }
 
     private JCheckBox getDontPromptCheckbox() {
@@ -694,87 +670,51 @@ public class View implements ViewDelegate {
     }
 
     public void addContext(Context c) {
-        getSessionDialog().createUISharedContext(c);
-
-        String contextsNodeName = Constant.messages.getString("context.list");
         ContextGeneralPanel contextGenPanel = new ContextGeneralPanel(c.getName(), c.getIndex());
         contextGenPanel.setSessionDialog(getSessionDialog());
-        getSessionDialog().addParamPanel(new String[]{ contextsNodeName }, contextGenPanel, false);
+        getSessionDialog().addParamPanel(new String[]{Constant.messages.getString("context.list")}, contextGenPanel, false);
         this.contextPanels.add(contextGenPanel);
 
-        String[] contextPanelPath = new String[] { contextsNodeName, contextGenPanel.getName() };
         ContextIncludePanel contextIncPanel = new ContextIncludePanel(c);
         contextIncPanel.setSessionDialog(getSessionDialog());
-        getSessionDialog().addParamPanel(contextPanelPath, contextIncPanel, false);
+        getSessionDialog().addParamPanel(new String[]{Constant.messages.getString("context.list"), contextGenPanel.getName()}, contextIncPanel, false);
         this.contextPanels.add(contextIncPanel);
 
         ContextExcludePanel contextExcPanel = new ContextExcludePanel(c);
         contextExcPanel.setSessionDialog(getSessionDialog());
-        getSessionDialog().addParamPanel(contextPanelPath, contextExcPanel, false);
+        getSessionDialog().addParamPanel(new String[]{Constant.messages.getString("context.list"), contextGenPanel.getName()}, contextExcPanel, false);
         this.contextPanels.add(contextExcPanel);
 
         ContextStructurePanel contextStructPanel = new ContextStructurePanel(c);
         contextStructPanel.setSessionDialog(getSessionDialog());
-        getSessionDialog().addParamPanel(contextPanelPath, contextStructPanel, false);
+        getSessionDialog().addParamPanel(new String[]{Constant.messages.getString("context.list"), contextGenPanel.getName()}, contextStructPanel, false);
         this.contextPanels.add(contextStructPanel);
 
         ContextTechnologyPanel contextTechPanel = new ContextTechnologyPanel(c);
         contextTechPanel.setSessionDialog(getSessionDialog());
-        getSessionDialog().addParamPanel(contextPanelPath, contextTechPanel, false);
+        getSessionDialog().addParamPanel(new String[]{Constant.messages.getString("context.list"), contextGenPanel.getName()}, contextTechPanel, false);
         this.contextPanels.add(contextTechPanel);
 
         for (ContextPanelFactory cpf : this.contextPanelFactories) {
-            addPanelForContext(c, cpf, contextPanelPath);
+            AbstractContextPropertiesPanel panel = cpf.getContextPanel(c);
+            panel.setSessionDialog(getSessionDialog());
+            getSessionDialog().addParamPanel(new String[]{Constant.messages.getString("context.list"), contextGenPanel.getName()}, panel, false);
+            this.contextPanels.add(panel);
         }
         this.getSiteTreePanel().reloadContextTree();
-    }
-
-    /**
-     * Adds a custom context panel for the given context, created form the given context panel factory and placed under the
-     * given path.
-     *
-     * @param contextPanelFactory context panel factory used to create the panel, must not be {@code null}
-     * @param panelPath the path where to add the created panel, must not be {@code null}
-     * @param context the target context, must not be {@code null}
-     */
-    private void addPanelForContext(Context context, ContextPanelFactory contextPanelFactory, String[] panelPath) {
-        AbstractContextPropertiesPanel panel = contextPanelFactory.getContextPanel(context);
-        panel.setSessionDialog(getSessionDialog());
-        getSessionDialog().addParamPanel(panelPath, panel, false);
-        this.contextPanels.add(panel);
-
-        List<AbstractContextPropertiesPanel> panels = contextPanelFactoriesPanels.get(contextPanelFactory);
-        if (panels == null) {
-            panels = new ArrayList<>();
-            contextPanelFactoriesPanels.put(contextPanelFactory, panels);
-        }
-        panels.add(panel);
     }
 
     public void renameContext(Context c) {
-        ContextGeneralPanel ctxPanel = getContextGeneralPanel(c);
-        if (ctxPanel != null) {
-            getSessionDialog().renamePanel(ctxPanel, c.getIndex() + ":" + c.getName());
-        }
-        this.getSiteTreePanel().reloadContextTree();
-    }
-
-    /**
-     * Gets the context general panel of the given {@code context}.
-     *
-     * @param context the context whose context general panel will be returned
-     * @return the {@code ContextGeneralPanel} of the given context, {@code null} if not found
-     */
-    private ContextGeneralPanel getContextGeneralPanel(Context context) {
         for (AbstractParamPanel panel : contextPanels) {
             if (panel instanceof ContextGeneralPanel) {
-                ContextGeneralPanel contextGeneralPanel = (ContextGeneralPanel) panel;
-                if (contextGeneralPanel.getContextIndex() == context.getIndex()) {
-                    return contextGeneralPanel;
+                ContextGeneralPanel ctxPanel = (ContextGeneralPanel) panel;
+                if (ctxPanel.getContextIndex() == c.getIndex()) {
+                    getSessionDialog().renamePanel(ctxPanel, c.getIndex() + ":" + c.getName());
+                    break;
                 }
             }
         }
-        return null;
+        this.getSiteTreePanel().reloadContextTree();
     }
 
     public void changeContext(Context c) {
@@ -782,58 +722,20 @@ public class View implements ViewDelegate {
     }
 
     @Override
-    public void addContextPanelFactory(ContextPanelFactory contextPanelFactory) {
-        if (contextPanelFactory == null) {
-            throw new IllegalArgumentException("Parameter contextPanelFactory must not be null.");
-        }
-        this.contextPanelFactories.add(contextPanelFactory);
-
-        if (postInitialisation) {
-            String contextsNodeName = Constant.messages.getString("context.list");
-            for (Context context : Model.getSingleton().getSession().getContexts()) {
-                ContextGeneralPanel contextGeneralPanel = getContextGeneralPanel(context);
-                if (contextGeneralPanel != null) {
-                    addPanelForContext(context, contextPanelFactory, new String[] { contextsNodeName, contextGeneralPanel.getName() });
-                }
-            }
-        }
-    }
-
-    @Override
-    public void removeContextPanelFactory(ContextPanelFactory contextPanelFactory) {
-        if (contextPanelFactory == null) {
-            throw new IllegalArgumentException("Parameter contextPanelFactory must not be null.");
-        }
-
-        if (contextPanelFactories.remove(contextPanelFactory)) {
-            contextPanelFactory.discardContexts();
-
-            List<AbstractContextPropertiesPanel> panels = contextPanelFactoriesPanels.remove(contextPanelFactory);
-            if (panels != null) {
-                for (AbstractContextPropertiesPanel panel : panels) {
-                    getSessionDialog().removeParamPanel(panel);
-                }
-                contextPanels.removeAll(panels);
-            }
-        }
+    public void addContextPanelFactory(ContextPanelFactory cpf) {
+        this.contextPanelFactories.add(cpf);
     }
 
     public void deleteContext(Context c) {
-        List<AbstractContextPropertiesPanel> removedPanels = new ArrayList<>();
         for (Iterator<AbstractContextPropertiesPanel> it = contextPanels.iterator(); it.hasNext();) {
             AbstractContextPropertiesPanel panel = it.next();
         	if (panel.getContextIndex() == c.getIndex()) {
                 getSessionDialog().removeParamPanel(panel);
                 it.remove();
-                removedPanels.add(panel);
         	}
         }
         for (ContextPanelFactory cpf : this.contextPanelFactories) {
             cpf.discardContext(c);
-            List<AbstractContextPropertiesPanel> panels = contextPanelFactoriesPanels.get(cpf);
-            if (panels != null) {
-                panels.removeAll(removedPanels);
-            }
         }
         this.getSiteTreePanel().reloadContextTree();
     }
@@ -844,7 +746,6 @@ public class View implements ViewDelegate {
         }
         for (ContextPanelFactory cpf : this.contextPanelFactories) {
             cpf.discardContexts();
-            contextPanelFactoriesPanels.remove(cpf);
         }
         contextPanels.clear();
         this.getSiteTreePanel().reloadContextTree();
@@ -970,58 +871,5 @@ public class View implements ViewDelegate {
      */
     public Component getSplashScreen() {
         return splashScreen;
-    }
-    
-    /**
-     * Returns a StatusUI for the given AddOn.Status
-     * @param status the Status for which a StatusUI is wanted
-     * @return a StatusUI
-     * @since 2.5.0
-     */
-    public StatusUI getStatusUI(AddOn.Status status) {
-    	return statusMap.get(status);
-    }
-
-    /**
-     * Sets whether or not the main tool bar should be visible.
-     *
-     * @param visible {@code true} if the main tool bar should be visible, {@code false} otherwise.
-     * @since 2.5.0
-     */
-    public void setMainToolbarVisible(boolean visible) {
-        getMainFrame().setMainToolbarVisible(visible);
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * <strong>Note:</strong> Current implementation just supports {@link HttpMessage HTTP messages}. Attempting to display
-     * other message types has no effect.
-     */
-    @Override
-    public void displayMessage(Message message) {
-        if (message == null) {
-            getRequestPanel().clearView(true);
-            getResponsePanel().clearView(false);
-            return;
-        }
-
-        if (!(message instanceof HttpMessage)) {
-            logger.warn("Unable to display message: " + message.getClass().getCanonicalName());
-            return;
-        }
-
-        HttpMessage httpMessage = (HttpMessage) message;
-        if (httpMessage.getRequestHeader().isEmpty()) {
-            getRequestPanel().clearView(true);
-        } else {
-            getRequestPanel().setMessage(httpMessage);
-        }
-
-        if (httpMessage.getResponseHeader().isEmpty()) {
-            getResponsePanel().clearView(false);
-        } else {
-            getResponsePanel().setMessage(httpMessage, true);
-        }
     }
 }

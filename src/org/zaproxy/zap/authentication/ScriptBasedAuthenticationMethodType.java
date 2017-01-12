@@ -5,6 +5,7 @@ import java.awt.Component;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -104,56 +105,52 @@ public class ScriptBasedAuthenticationMethodType extends AuthenticationMethodTyp
 		/**
 		 * Load a script and fills in the method's filled according to the values specified by the
 		 * script.
-		 * <p>
+		 * 
+		 * If an error occurs while loading the script, an {@link IllegalArgumentException} is
+		 * thrown.
+		 * 
 		 * If the method already had a loaded script and a set of values for the parameters, it
 		 * tries to provide new values for the new parameters if they match any previous parameter
 		 * names.
 		 * 
 		 * @param scriptW the script wrapper
-		 * @throws IllegalArgumentException if an error occurs while loading the script.
 		 */
-		public void loadScript(ScriptWrapper scriptW) {
-			AuthenticationScript script = getScriptInterfaceV2(scriptW);
-			if (script == null) {
-				script = getScriptInterface(scriptW);
-			}
-			if (script == null) {
-				log.warn("The script " + scriptW.getName()
-						+ " does not properly implement the Authentication Script interface.");
-				throw new IllegalArgumentException(Constant.messages.getString(
-						"authentication.method.script.dialog.error.text.interface", scriptW.getName()));
-			}
-
+		public void loadScript(ScriptWrapper scriptW) throws IllegalArgumentException {
 			try {
-				if (script instanceof AuthenticationScriptV2) {
-					AuthenticationScriptV2 scriptV2 = (AuthenticationScriptV2) script;
-					setLoggedInIndicatorPattern(scriptV2.getLoggedInIndicator());
-					setLoggedOutIndicatorPattern(scriptV2.getLoggedOutIndicator());
-				}
-				String[] requiredParams = script.getRequiredParamsNames();
-				String[] optionalParams = script.getOptionalParamsNames();
-				this.credentialsParamNames = script.getCredentialsParamsNames();
-				if (log.isDebugEnabled()) {
-					log.debug("Loaded authentication script - required parameters: "
-							+ Arrays.toString(requiredParams) + " - optional parameters: "
-							+ Arrays.toString(optionalParams));
-				}
+				AuthenticationScript script = getScriptsExtension().getInterface(scriptW,
+						AuthenticationScript.class);
 
-				// If there's an already loaded script, make sure we save its values and _try_
-				// to use them
-				Map<String, String> oldValues = this.paramValues != null ? this.paramValues : Collections
-						.<String, String> emptyMap();
-				this.paramValues = new HashMap<>(requiredParams.length + optionalParams.length);
-				for (String param : requiredParams)
-					this.paramValues.put(param, oldValues.get(param));
-				for (String param : optionalParams)
-					this.paramValues.put(param, oldValues.get(param));
+				if (script != null) {
+					String[] requiredParams = script.getRequiredParamsNames();
+					String[] optionalParams = script.getOptionalParamsNames();
+					this.credentialsParamNames = script.getCredentialsParamsNames();
+					if (log.isDebugEnabled()) {
+						log.debug("Loaded authentication script - required parameters: "
+								+ Arrays.toString(requiredParams) + " - optional parameters: "
+								+ Arrays.toString(optionalParams));
+					}
 
-				this.script = scriptW;
-				log.info("Successfully loaded new script for ScriptBasedAuthentication: " + this);
+					// If there's an already loaded script, make sure we save its values and _try_
+					// to use them
+					Map<String, String> oldValues = this.paramValues != null ? this.paramValues : Collections
+							.<String, String> emptyMap();
+					this.paramValues = new HashMap<>(requiredParams.length + optionalParams.length);
+					for (String param : requiredParams)
+						this.paramValues.put(param, oldValues.get(param));
+					for (String param : optionalParams)
+						this.paramValues.put(param, oldValues.get(param));
+
+					this.script = scriptW;
+					log.info("Successfully loaded new script for ScriptBasedAuthentication: " + this);
+					return;
+				} else {
+					log.warn("The script " + scriptW.getName()
+							+ " does not properly implement the Authentication Script interface.");
+					throw new IllegalArgumentException(Constant.messages.getString(
+							"authentication.method.script.dialog.error.text.interface", scriptW.getName()));
+				}
 			} catch (Exception e) {
 				log.error("Error while loading authentication script", e);
-				getScriptsExtension().handleScriptException(this.script, e);
 				throw new IllegalArgumentException(Constant.messages.getString(
 						"authentication.method.script.dialog.error.text.loading", e.getMessage()));
 			}
@@ -174,7 +171,7 @@ public class ScriptBasedAuthenticationMethodType extends AuthenticationMethodTyp
 		protected AuthenticationMethod duplicate() {
 			ScriptBasedAuthenticationMethod method = new ScriptBasedAuthenticationMethod();
 			method.script = script;
-			method.paramValues = this.paramValues != null ? new HashMap<String, String>(this.paramValues) : null;
+			method.paramValues = new HashMap<String, String>(this.paramValues);
 			method.credentialsParamNames = this.credentialsParamNames;
 			return method;
 		}
@@ -218,22 +215,10 @@ public class ScriptBasedAuthenticationMethodType extends AuthenticationMethodTyp
 
 			// Call the script to get an authenticated message from which we can then extract the
 			// session
-			AuthenticationScript script = getScriptInterfaceV2(this.script);
-			if (script == null) {
-				script = getScriptInterface(this.script);
-			}
-
-			if (script == null) {
-				return null;
-			}
-
+			AuthenticationScript script;
 			HttpMessage msg = null;
 			try {
-				if (script instanceof AuthenticationScriptV2) {
-					AuthenticationScriptV2 scriptV2 = (AuthenticationScriptV2) script;
-					setLoggedInIndicatorPattern(scriptV2.getLoggedInIndicator());
-					setLoggedOutIndicatorPattern(scriptV2.getLoggedOutIndicator());
-				}
+				script = getScriptsExtension().getInterface(this.script, AuthenticationScript.class);
 				msg = script.authenticate(new AuthenticationHelper(getHttpSender(), sessionManagementMethod,
 						user), this.paramValues, cred);
 			} catch (Exception e) {
@@ -241,17 +226,12 @@ public class ScriptBasedAuthenticationMethodType extends AuthenticationMethodTyp
 				// might throw other exceptions on script errors (e.g. jdk.nashorn.internal.runtime.ECMAException)
 				log.error("An error occurred while trying to authenticate using the Authentication Script: "
 						+ this.script.getName(), e);
-				getScriptsExtension().handleScriptException(this.script, e);
+				getScriptsExtension().setError(this.script, e);
 				return null;
 			}
 
-			if (this.isAuthenticated(msg)) {
-				// Let the user know it worked
-				AuthenticationHelper.notifyOutputAuthSuccessful(msg);
-			} else {
-				// Let the user know it failed
-				AuthenticationHelper.notifyOutputAuthFailure(msg);
-			}
+			// Let the user know it worked
+			AuthenticationHelper.notifyOutputAuthSuccessful();
 
 			// Add message to history
 			AuthenticationHelper.addAuthMessageToHistory(msg);
@@ -283,7 +263,6 @@ public class ScriptBasedAuthenticationMethodType extends AuthenticationMethodTyp
 		private JButton loadScriptButton;
 
 		private ScriptBasedAuthenticationMethod method;
-		private AuthenticationIndicatorsPanel indicatorsPanel;
 
 		private ScriptWrapper loadedScript;
 
@@ -376,88 +355,59 @@ public class ScriptBasedAuthenticationMethodType extends AuthenticationMethodTyp
 		}
 
 		@Override
-		public void bindMethod(AuthenticationMethod method, AuthenticationIndicatorsPanel indicatorsPanel)
-				throws UnsupportedAuthenticationMethodException {
-			this.indicatorsPanel = indicatorsPanel;
-			bindMethod(method);
-		}
-
-		@Override
 		public AuthenticationMethod getMethod() {
 			return this.method;
 		}
 
 		private void loadScript(ScriptWrapper scriptW, boolean adaptOldValues) {
-			AuthenticationScript script = getScriptInterfaceV2(scriptW);
-			if (script == null) {
-				script = getScriptInterface(scriptW);
-			}
-
-			if (script == null) {
-				log.warn("The script " + scriptW.getName()
-						+ " does not properly implement the Authentication Script interface.");
-				warnAndResetPanel(Constant.messages.getString(
-						"authentication.method.script.dialog.error.text.interface", scriptW.getName()));
-				return;
-			}
-
+			String errorMessage;
 			try {
-				if (script instanceof AuthenticationScriptV2) {
-					AuthenticationScriptV2 scriptV2 = (AuthenticationScriptV2) script;
-					String toolTip = Constant.messages
-							.getString("authentication.method.script.dialog.loggedInOutIndicatorsInScript.toolTip");
-					String loggedInIndicator = scriptV2.getLoggedInIndicator();
-					this.method.setLoggedInIndicatorPattern(loggedInIndicator);
-					this.indicatorsPanel.setLoggedInIndicatorPattern(loggedInIndicator);
-					this.indicatorsPanel.setLoggedInIndicatorEnabled(false);
-					this.indicatorsPanel.setLoggedInIndicatorToolTip(toolTip);
+				AuthenticationScript script = getScriptsExtension().getInterface(scriptW,
+						AuthenticationScript.class);
 
-					String loggedOutIndicator = scriptV2.getLoggedOutIndicator();
-					this.method.setLoggedOutIndicatorPattern(loggedOutIndicator);
-					this.indicatorsPanel.setLoggedOutIndicatorPattern(loggedOutIndicator);
-					this.indicatorsPanel.setLoggedOutIndicatorEnabled(false);
-					this.indicatorsPanel.setLoggedOutIndicatorToolTip(toolTip);
+				if (script != null) {
+
+					String[] requiredParams = script.getRequiredParamsNames();
+					String[] optionalParams = script.getOptionalParamsNames();
+					this.loadedCredentialParams = script.getCredentialsParamsNames();
+					if (log.isDebugEnabled()) {
+						log.debug("Loaded authentication script - required parameters: "
+								+ Arrays.toString(requiredParams) + " - optional parameters: "
+								+ Arrays.toString(optionalParams));
+					}
+					// If there's an already loaded script, make sure we save its values and _try_
+					// to place them in the new panel
+					Map<String, String> oldValues = null;
+					if (adaptOldValues && dynamicFieldsPanel != null) {
+						oldValues = dynamicFieldsPanel.getFieldValues();
+						if (log.isDebugEnabled())
+							log.debug("Trying to adapt old values: " + oldValues);
+					}
+
+					this.dynamicFieldsPanel = new DynamicFieldsPanel(requiredParams, optionalParams);
+					this.loadedScript = scriptW;
+					if (adaptOldValues && oldValues != null)
+						this.dynamicFieldsPanel.bindFieldValues(oldValues);
+
+					this.dynamicContentPanel.removeAll();
+					this.dynamicContentPanel.add(dynamicFieldsPanel, BorderLayout.CENTER);
+					this.dynamicContentPanel.revalidate();
+
+					return;
 				} else {
-					this.indicatorsPanel.setLoggedInIndicatorEnabled(true);
-					this.indicatorsPanel.setLoggedInIndicatorToolTip(null);
-					this.indicatorsPanel.setLoggedOutIndicatorEnabled(true);
-					this.indicatorsPanel.setLoggedOutIndicatorToolTip(null);
+					log.warn("The script " + scriptW.getName()
+							+ " does not properly implement the Authentication Script interface.");
+					errorMessage = Constant.messages.getString(
+							"authentication.method.script.dialog.error.text.interface", scriptW.getName());
 				}
-				String[] requiredParams = script.getRequiredParamsNames();
-				String[] optionalParams = script.getOptionalParamsNames();
-				this.loadedCredentialParams = script.getCredentialsParamsNames();
-				if (log.isDebugEnabled()) {
-					log.debug("Loaded authentication script - required parameters: "
-							+ Arrays.toString(requiredParams) + " - optional parameters: "
-							+ Arrays.toString(optionalParams));
-				}
-				// If there's an already loaded script, make sure we save its values and _try_
-				// to place them in the new panel
-				Map<String, String> oldValues = null;
-				if (adaptOldValues && dynamicFieldsPanel != null) {
-					oldValues = dynamicFieldsPanel.getFieldValues();
-					if (log.isDebugEnabled())
-						log.debug("Trying to adapt old values: " + oldValues);
-				}
-
-				this.dynamicFieldsPanel = new DynamicFieldsPanel(requiredParams, optionalParams);
-				this.loadedScript = scriptW;
-				if (adaptOldValues && oldValues != null)
-					this.dynamicFieldsPanel.bindFieldValues(oldValues);
-
-				this.dynamicContentPanel.removeAll();
-				this.dynamicContentPanel.add(dynamicFieldsPanel, BorderLayout.CENTER);
-				this.dynamicContentPanel.revalidate();
-
 			} catch (Exception e) {
-				getScriptsExtension().handleScriptException(scriptW, e);
-				log.error("Error while calling authentication script", e);
-				warnAndResetPanel(Constant.messages.getString(
-						"authentication.method.script.dialog.error.text.loading", e.getMessage()));
+				log.error("Error while loading authentication script", e);
+				errorMessage = Constant.messages.getString(
+						"authentication.method.script.dialog.error.text.loading", e.getMessage());
 			}
-		}
-
-		private void warnAndResetPanel(String errorMessage) {
+			// Ooops! If this point is reached, an error has occurred while loading
+			if (scriptW != null)
+				getScriptsExtension().setError(scriptW, errorMessage);
 			JOptionPane.showMessageDialog(this, errorMessage,
 					Constant.messages.getString("authentication.method.script.dialog.error.title"),
 					JOptionPane.ERROR_MESSAGE);
@@ -579,36 +529,25 @@ public class ScriptBasedAuthenticationMethodType extends AuthenticationMethodTyp
 			if (script == null) {
 				log.error("Unable to find script while loading Script Based Authentication Method for name: "
 						+ scriptName);
-				if (View.isInitialised()) {
-					View.getSingleton().showMessageDialog(
-							Constant.messages.getString("authentication.method.script.load.errorScriptNotFound", scriptName));
-				}
-				return;
+			} else {
+				log.info("Loaded script:" + script.getName());
 			}
-			log.info("Loaded script:" + script.getName());
 			method.script = script;
 
 			// Check script interface and make sure we load the credentials parameter names
-			AuthenticationScript s = getScriptInterfaceV2(script);
-			if (s == null) {
-				s = getScriptInterface(script);
-			}
-			if (s == null) {
-				log.error("Unable to load Script Based Authentication method. The script "
-						+ scriptName
-						+ " does not properly implement the Authentication Script interface.");
-				return;
-			}
-
+			AuthenticationScript s;
 			try {
-				if (s instanceof AuthenticationScriptV2) {
-					AuthenticationScriptV2 sV2 = (AuthenticationScriptV2) s;
-					method.setLoggedInIndicatorPattern(sV2.getLoggedInIndicator());
-					method.setLoggedOutIndicatorPattern(sV2.getLoggedOutIndicator());
+				s = getScriptsExtension().getInterface(script, AuthenticationScript.class);
+				if (s != null) {
+					method.credentialsParamNames = s.getCredentialsParamsNames();
+				} else {
+					log.error("Unable to load Script Based Authentication method. The script "
+							+ script.getName()
+							+ " does not properly implement the Authentication Script interface.");
 				}
-				method.credentialsParamNames = s.getCredentialsParamsNames();
-			} catch (Exception e) {
-				getScriptsExtension().handleScriptException(script, e);
+			} catch (ScriptException | IOException e) {
+				log.error("Unable to load Script Based Authentication method. The script " + script.getName()
+						+ " does not properly implement the Authentication Script interface.");
 			}
 
 		}
@@ -653,26 +592,6 @@ public class ScriptBasedAuthenticationMethodType extends AuthenticationMethodTyp
 		return extensionScript;
 	}
 
-	private AuthenticationScript getScriptInterface(ScriptWrapper script) {
-		try {
-			return getScriptsExtension().getInterface(script, AuthenticationScript.class);
-		} catch (Exception e) {
-			getScriptsExtension().handleFailedScriptInterface(
-					script,
-					Constant.messages.getString("authentication.method.script.dialog.error.text.interface", script.getName()));
-		}
-		return null;
-	}
-
-	private AuthenticationScriptV2 getScriptInterfaceV2(ScriptWrapper script) {
-		try {
-			return getScriptsExtension().getInterface(script, AuthenticationScriptV2.class);
-		} catch (Exception ignore) {
-			// The interface is optional, the AuthenticationScript will be checked after this one.
-		}
-		return null;
-	}
-
 	/**
 	 * The Interface that needs to be implemented by an Authentication Script.
 	 */
@@ -686,28 +605,6 @@ public class ScriptBasedAuthenticationMethodType extends AuthenticationMethodTyp
 
 		public HttpMessage authenticate(AuthenticationHelper helper, Map<String, String> paramsValues,
 				GenericAuthenticationCredentials credentials) throws ScriptException;
-	}
-
-	/**
-	 * An {@code AuthenticationScript} that allows to specify the logged in/out indicators.
-	 * 
-	 * @since 2.5.0
-	 */
-	public interface AuthenticationScriptV2 extends AuthenticationScript {
-
-		/**
-		 * Gets the logged in indicator pattern.
-		 * 
-		 * @return the logged in indicator pattern
-		 */
-		String getLoggedInIndicator();
-
-		/**
-		 * Gets the logged out indicator pattern.
-		 * 
-		 * @return the logged out indicator pattern
-		 */
-		String getLoggedOutIndicator();
 	}
 
 	/* API related constants and methods. */
@@ -737,55 +634,47 @@ public class ScriptBasedAuthenticationMethodType extends AuthenticationMethodTyp
 				method.script = script;
 
 				// Check script interface and make sure we load the credentials parameter names
-				AuthenticationScript s = getScriptInterfaceV2(script);
-				if (s == null) {
-					s = getScriptInterface(script);
-				}
-				if (s == null) {
+				AuthenticationScript s;
+				try {
+					s = getScriptsExtension().getInterface(script, AuthenticationScript.class);
+					if (s != null) {
+						method.credentialsParamNames = s.getCredentialsParamsNames();
+
+						// Load config param names + values and make sure all of the required ones
+						// are there
+						String[] requiredParams = s.getRequiredParamsNames();
+						String[] optionalParams = s.getOptionalParamsNames();
+						if (log.isDebugEnabled()) {
+							log.debug("Loaded authentication script - required parameters: "
+									+ Arrays.toString(requiredParams) + " - optional parameters: "
+									+ Arrays.toString(optionalParams));
+						}
+
+						Map<String, String> paramValues = new HashMap<String, String>();
+						for (String rp : requiredParams) {
+							// If one of the required parameters is not present, it will throw
+							// an exception
+							String val = ApiUtils.getNonEmptyStringParam(params, rp);
+							paramValues.put(rp, val);
+						}
+
+						for (String op : optionalParams)
+							paramValues.put(op, ApiUtils.getOptionalStringParam(params, op));
+						method.paramValues = paramValues;
+						if (log.isDebugEnabled())
+							log.debug("Loaded authentication script parameters:" + paramValues);
+
+					} else {
+						log.error("Unable to load Script Based Authentication method. The script "
+								+ script.getName()
+								+ " does not properly implement the Authentication Script interface.");
+						throw new ApiException(ApiException.Type.BAD_SCRIPT_FORMAT,
+								"Does not follow Authentication script interface");
+					}
+				} catch (ScriptException | IOException e) {
 					log.error("Unable to load Script Based Authentication method. The script "
 							+ script.getName()
 							+ " does not properly implement the Authentication Script interface.");
-					throw new ApiException(ApiException.Type.BAD_SCRIPT_FORMAT,
-							"Does not follow Authentication script interface");
-				}
-				try {
-					if (s instanceof AuthenticationScriptV2) {
-						AuthenticationScriptV2 sV2 = (AuthenticationScriptV2) s;
-						method.setLoggedInIndicatorPattern(sV2.getLoggedInIndicator());
-						method.setLoggedOutIndicatorPattern(sV2.getLoggedOutIndicator());
-					}
-					method.credentialsParamNames = s.getCredentialsParamsNames();
-
-					// Load config param names + values and make sure all of the required ones
-					// are there
-					String[] requiredParams = s.getRequiredParamsNames();
-					String[] optionalParams = s.getOptionalParamsNames();
-					if (log.isDebugEnabled()) {
-						log.debug("Loaded authentication script - required parameters: "
-								+ Arrays.toString(requiredParams) + " - optional parameters: "
-								+ Arrays.toString(optionalParams));
-					}
-
-					Map<String, String> paramValues = new HashMap<String, String>();
-					for (String rp : requiredParams) {
-						// If one of the required parameters is not present, it will throw
-						// an exception
-						String val = ApiUtils.getNonEmptyStringParam(params, rp);
-						paramValues.put(rp, val);
-					}
-
-					for (String op : optionalParams)
-						paramValues.put(op, ApiUtils.getOptionalStringParam(params, op));
-					method.paramValues = paramValues;
-					if (log.isDebugEnabled())
-						log.debug("Loaded authentication script parameters:" + paramValues);
-
-				} catch (ApiException e) {
-					throw e;
-				} catch (Exception e) {
-					getScriptsExtension().handleScriptException(script, e);
-					log.error("Unable to load Script Based Authentication method. The script "
-							+ script.getName() + " contains errors.");
 					throw new ApiException(ApiException.Type.BAD_SCRIPT_FORMAT, e.getMessage());
 				}
 

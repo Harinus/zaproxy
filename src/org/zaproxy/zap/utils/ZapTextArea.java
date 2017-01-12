@@ -37,7 +37,6 @@ import org.zaproxy.zap.utils.ZapTextComponentUndoManager.UndoManagerPolicy;
  * If you do not need undoable edits consider using a {@code JTextArea} instead.
  * </p>
  * 
- * @since 1.3.0
  * @see #discardAllEdits()
  * @see #setUndoManagerPolicy
  * @see #setEditsLimit(int)
@@ -50,60 +49,42 @@ public class ZapTextArea extends JTextArea {
 	private ZapTextComponentUndoManager undoManager;
 
 	/**
-	 * Constructs a {@code ZapTextArea}, with a default {@code Document}, {@code null} text and zero rows/columns.
+	 * @see JTextArea#JTextArea()
 	 */
 	public ZapTextArea() {
 		this(null, null, 0, 0);
 	}
 
 	/**
-	 * Constructs a {@code ZapTextArea}, with the given {@code Document}, {@code null} text and zero rows/columns.
-	 * 
-	 * @param doc the document of the text area
+	 * @see JTextArea#JTextArea(Document)
 	 */
 	public ZapTextArea(Document doc) {
 		this(doc, null, 0, 0);
 	}
 
 	/**
-	 * Constructs a {@code ZapTextArea}, with a default {@code Document}, the given {@code text} and zero rows/columns.
-	 * 
-	 * @param text the initial text of the text area
+	 * @see JTextArea#JTextArea(String)
 	 */
 	public ZapTextArea(String text) {
 		this(null, text, 0, 0);
 	}
 
 	/**
-	 * Constructs a {@code ZapTextArea}, with a default {@code Document}, {@code null} {@code text} and the given number of rows
-	 * and columns.
-	 * 
-	 * @param rows the number of rows of the text area
-	 * @param columns the number of columns of the text area
+	 * @see JTextArea#JTextArea(int, int)
 	 */
 	public ZapTextArea(int rows, int columns) {
 		this(null, null, rows, columns);
 	}
 
 	/**
-	 * Constructs a {@code ZapTextArea}, with a default {@code Document}, the given {@code text} and the given number of rows
-	 * and columns.
-	 * 
-	 * @param text the initial text of the text area
-	 * @param rows the number of rows of the text area
-	 * @param columns the number of columns of the text area
+	 * @see JTextArea#JTextArea(String, int, int)
 	 */
 	public ZapTextArea(String text, int rows, int columns) {
 		this(null, text, rows, columns);
 	}
 
 	/**
-	 * Constructs a {@code ZapTextArea}, with the given {@code Document}, {@code text} and number of rows and columns.
-	 * 
-	 * @param doc the document of the text area
-	 * @param text the initial text of the text area
-	 * @param rows the number of rows of the text area
-	 * @param columns the number of columns of the text area
+	 * @see JTextArea#JTextArea(Document, String, int, int)
 	 */
 	public ZapTextArea(Document doc, String text, int rows, int columns) {
 		super(doc, text, rows, columns);

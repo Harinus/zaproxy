@@ -223,9 +223,7 @@ public final class LocaleUtils {
 	}
 	
 	/**
-	 * Gets the name of the language of and for the given locale.
-	 * 
-	 * @param locale the locale whose language name will be returned
+	 * @param locale
 	 * @return the name of the language
 	 */
 	public static String getLocalDisplayName(String locale) {

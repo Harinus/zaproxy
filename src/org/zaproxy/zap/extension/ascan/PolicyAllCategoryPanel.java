@@ -20,9 +20,6 @@
  */
 // ZAP: 2013/03/03 Issue 546: Remove all template Javadoc comments
 // ZAP: 2013/11/28 Issue 923: Allow individual rule thresholds and strengths to be set via GUI
-// ZAP: 2016/01/19 Allow to obtain the ScanPolicy
-// ZAP: 2016/04/04 Use StatusUI in scanners' dialogues
-// ZAP: 2016/07/25 Use new AllCategoryTableModel's constructor
 package org.zaproxy.zap.extension.ascan;
 
 import java.awt.GridBagConstraints;
@@ -33,11 +30,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
-import java.util.EventListener;
 import java.util.List;
 
 import javax.swing.DefaultCellEditor;
-import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
@@ -55,8 +50,6 @@ import org.parosproxy.paros.core.scanner.Plugin;
 import org.parosproxy.paros.core.scanner.Plugin.AlertThreshold;
 import org.parosproxy.paros.core.scanner.Plugin.AttackStrength;
 import org.parosproxy.paros.view.AbstractParamPanel;
-import org.parosproxy.paros.view.View;
-import org.zaproxy.zap.control.AddOn;
 import org.zaproxy.zap.utils.DisplayUtils;
 import org.zaproxy.zap.utils.ZapTextField;
 import org.zaproxy.zap.view.LayoutHelper;
@@ -89,6 +82,9 @@ public class PolicyAllCategoryPanel extends AbstractParamPanel {
     
     private static final int[] width = {300, 100, 100};
 
+    /**
+     *
+     */
     public PolicyAllCategoryPanel(Window parent, ExtensionActiveScan extension, ScanPolicy policy) {
     	this(parent, extension, policy, false);
     }
@@ -224,7 +220,6 @@ public class PolicyAllCategoryPanel extends AbstractParamPanel {
 						policy = extension.getPolicyManager().getPolicy(policyName);
 						if (policy != null) {
 							setScanPolicy(policy);
-							fireScanPolicyChanged(policy);
 						}
 					} catch (ConfigurationException e1) {
 						logger.error(e1.getMessage(), e1);
@@ -235,28 +230,16 @@ public class PolicyAllCategoryPanel extends AbstractParamPanel {
     }
     
     /**
-     * Reloads the scan policies, which will pick any new ones that have been defined and selects the policy with the given
-     * name.
-     * 
-     * @param scanPolicyName the name of the policy that should be selected
-     * @since 2.5.0
-     */
-    public void reloadPolicies(String scanPolicyName) {
-        DefaultComboBoxModel<String> policies = new DefaultComboBoxModel<>();
-        for (String policy : extension.getPolicyManager().getAllPolicyNames()) {
-            policies.addElement(policy);
-        }
-        getPolicySelector().setModel(policies);
-        getPolicySelector().setSelectedItem(scanPolicyName);
-    }
-
-    /**
      * Reloads the scan policies, which will pick any new ones that have been defined
      */
     public void reloadPolicies() {
     	// Ensure policySelector is initialized
     	Object selected = getPolicySelector().getSelectedItem(); 
-    	reloadPolicies((String) selected);
+    	policySelector.removeAllItems();
+		for (String policy : extension.getPolicyManager().getAllPolicyNames()) {
+			policySelector.addItem(policy);
+		}
+		policySelector.setSelectedItem(selected);
     }
     
     private AlertThreshold strToThreshold(String str) {
@@ -289,49 +272,23 @@ public class PolicyAllCategoryPanel extends AbstractParamPanel {
 
     private JComboBox<String> getApplyToThresholdTarget() {
         if (applyToThresholdTarget == null) {
-            applyToThresholdTarget = createStatusComboBox();
+            applyToThresholdTarget = new JComboBox<>();
+            applyToThresholdTarget.addItem(Constant.messages.getString("ascan.policy.table.quality.all"));
+            applyToThresholdTarget.addItem(Constant.messages.getString("ascan.policy.table.quality.release"));
+            applyToThresholdTarget.addItem(Constant.messages.getString("ascan.policy.table.quality.beta"));
+            applyToThresholdTarget.addItem(Constant.messages.getString("ascan.policy.table.quality.alpha"));
         }
         return applyToThresholdTarget;
     }
     
-    /**
-     * Creates a {@code JComboBox} with scanners' statuses, "all", release, beta and alpha.
-     *
-     * @return a {@code JComboBox} with scanners' statuses
-     */
-    private JComboBox<String> createStatusComboBox() {
-        JComboBox<String> comboBox = new JComboBox<>();
-        comboBox.addItem(Constant.messages.getString("ascan.policy.table.quality.all"));
-        View view = View.getSingleton();
-        comboBox.addItem(view.getStatusUI(AddOn.Status.release).toString());
-        comboBox.addItem(view.getStatusUI(AddOn.Status.beta).toString());
-        comboBox.addItem(view.getStatusUI(AddOn.Status.alpha).toString());
-        return comboBox;
-    }
-
     private void applyThreshold(AlertThreshold threshold, String target) {
     	for (Plugin plugin : policy.getPluginFactory().getAllPlugin()) {
-    		if (hasSameStatus(plugin, target)) {
+    		if (target.equals(Constant.messages.getString("ascan.policy.table.quality.all"))) {
+    			plugin.setAlertThreshold(threshold);
+    		} else if (target.equals(Constant.messages.getString("ascan.policy.table.quality." + plugin.getStatus().name()))) {
     			plugin.setAlertThreshold(threshold);
     		}
     	}
-    }
-
-    /**
-     * Tells whether or not the given {@code scanner} has the given {@code status}.
-     * <p>
-     * If the given {@code status} represents all statuses it returns always {@code true}.
-     *
-     * @param scanner the scanner that will be checked
-     * @param status the status to check
-     * @return {@code true} if it has the same status, {@code false} otherwise.
-     * @see Plugin#getStatus()
-     */
-    private boolean hasSameStatus(Plugin scanner, String status) {
-        if (status.equals(Constant.messages.getString("ascan.policy.table.quality.all"))) {
-            return true;
-        }
-        return status.equals(View.getSingleton().getStatusUI(scanner.getStatus()).toString());
     }
 
     private AttackStrength strToStrength(String str) {
@@ -364,14 +321,20 @@ public class PolicyAllCategoryPanel extends AbstractParamPanel {
 
     private JComboBox<String> getApplyToStrengthTarget() {
         if (applyToStrengthTarget == null) {
-            applyToStrengthTarget = createStatusComboBox();
+            applyToStrengthTarget = new JComboBox<>();
+            applyToStrengthTarget.addItem(Constant.messages.getString("ascan.policy.table.quality.all"));
+            applyToStrengthTarget.addItem(Constant.messages.getString("ascan.policy.table.quality.release"));
+            applyToStrengthTarget.addItem(Constant.messages.getString("ascan.policy.table.quality.beta"));
+            applyToStrengthTarget.addItem(Constant.messages.getString("ascan.policy.table.quality.alpha"));
         }
         return applyToStrengthTarget;
     }
     
     private void applyStrength(AttackStrength strength, String target) {
     	for (Plugin plugin : policy.getPluginFactory().getAllPlugin()) {
-    		if (hasSameStatus(plugin, target)) {
+    		if (target.equals(Constant.messages.getString("ascan.policy.table.quality.all"))) {
+    			plugin.setAttackStrength(strength);
+    		} else if (target.equals(Constant.messages.getString("ascan.policy.table.quality." + plugin.getStatus().name()))) {
     			plugin.setAttackStrength(strength);
     		}
     	}
@@ -492,7 +455,8 @@ public class PolicyAllCategoryPanel extends AbstractParamPanel {
      */
     private AllCategoryTableModel getAllCategoryTableModel() {
         if (allCategoryTableModel == null) {
-            allCategoryTableModel = new AllCategoryTableModel(policy.getPluginFactory());
+            allCategoryTableModel = new AllCategoryTableModel(this);
+            allCategoryTableModel.setPluginFactory(this.policy.getPluginFactory());
         }
         
         return allCategoryTableModel;
@@ -577,54 +541,13 @@ public class PolicyAllCategoryPanel extends AbstractParamPanel {
         return comboStrength;
     }
 
+    /**
+     * 
+     * @return 
+     */
     @Override
     public String getHelpIndex() {
         return "ui.dialogs.scanpolicy";
     }
     
-    /**
-     * Adds the given {@code listener} to the list that's notified of each change in the selected scan policy.
-     *
-     * @param listener the listener that will be added
-     * @since 2.5.0
-     */
-    public void addScanPolicyChangedEventListener(ScanPolicyChangedEventListener listener) {
-        listenerList.add(ScanPolicyChangedEventListener.class, listener);
-    }
-
-    /**
-     * Removes the given {@code listener} from the list that's notified of each change in the selected scan policy.
-     *
-     * @param listener the listener that will be removed
-     * @since 2.5.0
-     */
-    public void removeScanPolicyChangedEventListener(ScanPolicyChangedEventListener listener) {
-        listenerList.remove(ScanPolicyChangedEventListener.class, listener);
-    }
-
-    private void fireScanPolicyChanged(ScanPolicy scanPolicy) {
-        Object[] listeners = listenerList.getListenerList();
-        for (int i = listeners.length - 2; i >= 0; i -= 2) {
-            if (listeners[i] == ScanPolicyChangedEventListener.class) {
-                ((ScanPolicyChangedEventListener) listeners[i + 1]).scanPolicyChanged(scanPolicy);
-            }
-        }
-    }
-
-    /**
-     * The listener interface for receiving notifications of changes in the selected scan policy.
-     * 
-     * @since 2.5.0
-     * @see PolicyAllCategoryPanel#addScanPolicyChangedEventListener(ScanPolicyChangedEventListener)
-     * @see PolicyAllCategoryPanel#removeScanPolicyChangedEventListener(ScanPolicyChangedEventListener)
-     */
-    public interface ScanPolicyChangedEventListener extends EventListener {
-
-        /**
-         * Notifies that the selected scan policy was changed.
-         *
-         * @param scanPolicy the new selected scan policy
-         */
-        public void scanPolicyChanged(ScanPolicy scanPolicy);
-    }
 }

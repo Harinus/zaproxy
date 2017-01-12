@@ -60,9 +60,9 @@ public abstract class ScanPanel2<GS extends GenericScanner2, SC extends ScanCont
 	private static final long serialVersionUID = 1L;
 
 	protected enum Location {start, beforeSites, beforeButtons, beforeProgressBar, afterProgressBar};
-	private final String prefix;
+	public String prefix;
 	
-	private final SC controller;
+	private SC controller = null;
 	private JPanel panelCommand = null;
 	private JToolBar panelToolbar = null;
 	private JLabel scannedCountNameLabel = null;
@@ -84,28 +84,12 @@ public abstract class ScanPanel2<GS extends GenericScanner2, SC extends ScanCont
 	private static Logger log = Logger.getLogger(ScanPanel2.class);
     
     /**
-     * Constructs a {@code ScanPanel2} with the given message resources prefix, tab icon and scan controller.
-     * 
-     * @param prefix the prefix for the resource messages
-     * @param icon the icon for the tab of the panel
-     * @param controller the scan controller
-     * @param scanParam unused
-     * @deprecated (TODO add version) Use {@link #ScanPanel2(String, ImageIcon, ScanController)} instead.
+     * @param prefix
+     * @param icon
+     * @param extension
+     * @param scanParam
      */
-    @Deprecated
     public ScanPanel2(String prefix, ImageIcon icon, SC controller, AbstractParam scanParam) {
-        this(prefix, icon, controller);
-    }
-
-    /**
-     * Constructs a {@code ScanPanel2} with the given message resources prefix, tab icon and scan controller.
-     * 
-     * @param prefix the prefix for the resource messages
-     * @param icon the icon for the tab of the panel
-     * @param controller the scan controller
-     * @since TODO add version
-     */
-    public ScanPanel2(String prefix, ImageIcon icon, SC controller) {
         super();
         this.prefix = prefix;
         this.controller = controller;
@@ -498,12 +482,19 @@ public abstract class ScanPanel2<GS extends GenericScanner2, SC extends ScanCont
 	    if (EventQueue.isDispatchThread()) {
 	    	scanProgressEventHandler(id, host, progress, maximum);
 	    } else {
-            EventQueue.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                	scanProgressEventHandler(id, host, progress, maximum);
-                }
-            });
+	        try {
+	            EventQueue.invokeAndWait(new Runnable() {
+	                @Override
+	                public void run() {
+	                	scanProgressEventHandler(id, host, progress, maximum);
+	                }
+	            });
+	        } catch (InterruptedException e) {
+				log.info("Interrupt scan progress update on GUI.");
+			} 
+	        catch (Exception e) {
+	            log.error(e.getMessage(), e);
+	        }
 	    }
 	}
 
@@ -554,8 +545,6 @@ public abstract class ScanPanel2<GS extends GenericScanner2, SC extends ScanCont
 		progressModel.removeAllElements();
 		progressSelect.addItem(selectScanEntry);
 		progressSelect.setSelectedIndex(0);
-
-		clearScansButton.setEnabled(false);
 	}
 
 	public void sessionScopeChanged(Session session) {
@@ -626,7 +615,9 @@ public abstract class ScanPanel2<GS extends GenericScanner2, SC extends ScanCont
             }
             ScanEntry<?> other = (ScanEntry<?>) obj;
             if (scan == null) {
-                return (other.scan == null);
+                if (other.scan != null) {
+                    return false;
+                }
             } else if (other.scan == null) {
                 return false;
             }

@@ -53,7 +53,6 @@ import org.parosproxy.paros.model.Session;
 import org.parosproxy.paros.model.SiteNode;
 import org.parosproxy.paros.view.View;
 import org.zaproxy.zap.extension.api.API;
-import org.zaproxy.zap.extension.brk.impl.http.HttpBreakpointManagementDaemonImpl;
 import org.zaproxy.zap.extension.brk.impl.http.HttpBreakpointMessage;
 import org.zaproxy.zap.extension.brk.impl.http.HttpBreakpointMessage.Location;
 import org.zaproxy.zap.extension.brk.impl.http.HttpBreakpointMessage.Match;
@@ -65,10 +64,6 @@ import org.zaproxy.zap.view.ZapMenuItem;
 
 public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedListener, OptionsChangedListener {
 
-    /**
-     * @deprecated (TODO add version) Should not be used/relied on, breakpoint dialogues should be modal.
-     */
-    @Deprecated
     public enum DialogType {NONE, ADD, EDIT, REMOVE};
     
     public static final String NAME = "ExtensionBreak";
@@ -83,7 +78,7 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
     private PopupMenuEditBreak popupMenuEditBreak = null;
 	private PopupMenuRemove popupMenuRemove = null;
 	
-	private BreakpointMessageHandler2 breakpointMessageHandler;
+	private BreakpointMessageHandler breakpointMessageHandler;
 	
     private DialogType currentDialogType = DialogType.NONE;
 	
@@ -97,7 +92,6 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
 	
 	private BreakpointsOptionsPanel breakpointsOptionsPanel;
 	
-	private BreakpointManagementInterface breakpointManagementInterface;
 	private HttpBreakpointsUiManagerInterface httpBreakpoints;
 
     private ZapMenuItem menuBreakOnRequests = null;
@@ -111,43 +105,45 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
 
 	
     public ExtensionBreak() {
-        super(NAME);
+        super();
+ 		initialize();
+    }
+
+    
+    public ExtensionBreak(String name) {
+        super(name);
+    }
+
+	
+	private void initialize() {
+        this.setName(NAME);
         this.setOrder(24);
 	}
 	
-	public BreakpointManagementInterface getBreakpointManagementInterface() {
-		return this.breakpointManagementInterface;
-	}
-	
-	/**
-	 * @deprecated (TODO add version) Classes outside of this package should not access the UI directly
-	 */
-    @Deprecated
 	public BreakPanel getBreakPanel() {
+		if (breakPanel == null) {
+		    breakPanel = new BreakPanel(this, getOptionsParam());
+		    breakPanel.setName(Constant.messages.getString("tab.break"));
+		}
 		return breakPanel;
 	}
 	
+	@SuppressWarnings("deprecation")
 	@Override
 	public void hook(ExtensionHook extensionHook) {
 	    super.hook(extensionHook);
 	    
 	    extensionHook.addOptionsParamSet(getOptionsParam());
-        extensionHook.addProxyListener(getProxyListenerBreak());
-        extensionHook.addSessionListener(this);
-        extensionHook.addOptionsChangedListener(this);
-
-        API.getInstance().registerApiImplementor(api);
 	    
 	    if (getView() != null) {
-	        breakPanel = new BreakPanel(this, getOptionsParam());
-	        breakPanel.setName(Constant.messages.getString("tab.break"));
-	        breakpointMessageHandler = new BreakpointMessageHandler2(breakPanel);
+	        breakpointMessageHandler = new BreakpointMessageHandler(getBreakPanel());
 	        breakpointMessageHandler.setEnabledBreakpoints(getBreakpointsModel().getBreakpointsEnabledList());
-	        breakpointManagementInterface = breakPanel; 
 	        
 	        ExtensionHookView pv = extensionHook.getHookView();
-	        pv.addWorkPanel(breakPanel);
+	        pv.addWorkPanel(getBreakPanel());
 	        pv.addOptionPanel(getOptionsPanel());
+	        
+            extensionHook.getHookMenu().addAnalyseMenuItem(extensionHook.getHookMenu().getMenuSeparator());
 
 	        extensionHook.getHookView().addStatusPanel(getBreakpointsPanel());
 
@@ -168,13 +164,17 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
 	        extensionHook.getHookMenu().addToolsMenuItem(getMenuDrop());
 	        extensionHook.getHookMenu().addToolsMenuItem(getMenuAddHttpBreakpoint());
             
-	    	ExtensionHelp.enableHelpKey(breakPanel, "ui.tabs.break");
-	    	ExtensionHelp.enableHelpKey(getBreakpointsPanel(), "ui.tabs.breakpoints");
-	    } else {
-	        this.breakpointManagementInterface = new HttpBreakpointManagementDaemonImpl();
+            extensionHook.addProxyListener(getProxyListenerBreak());
 
-	        breakpointMessageHandler = new BreakpointMessageHandler2(breakpointManagementInterface);
-	        breakpointMessageHandler.setEnabledBreakpoints(new ArrayList<BreakpointMessageInterface>());
+            // APIs are usually loaded even if the view is null, as they are specifically for daemon mode
+            // However in this case the API isnt really of any use unless the UI is available
+    		API.getInstance().registerApiImplementor(api);
+
+            extensionHook.addSessionListener(this);
+            extensionHook.addOptionsChangedListener(this);
+
+	    	ExtensionHelp.enableHelpKey(getBreakPanel(), "ui.tabs.break");
+	    	ExtensionHelp.enableHelpKey(getBreakpointsPanel(), "ui.tabs.breakpoints");
 	    }
 	}
 	
@@ -233,11 +233,11 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
 	}
 	
 	public void setBreakAllRequests(boolean brk) {
-		this.breakpointManagementInterface.setBreakAllRequests(brk);
+		this.getBreakPanel().setBreakAllRequests(brk);
 	}
     
 	public void setBreakAllResponses(boolean brk) {
-		this.breakpointManagementInterface.setBreakAllResponses(brk);
+		this.getBreakPanel().setBreakAllResponses(brk);
 	}
 
 	public void addHttpBreakpoint(String string, String location, String match, boolean inverse, boolean ignoreCase) {
@@ -356,10 +356,10 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
                 public void actionPerformed(java.awt.event.ActionEvent e) {
                 	if (getOptionsParam().getButtonMode() == BreakpointsParam.BUTTON_MODE_SIMPLE) {
                     	// Single button mode - toggle break on all
-                		breakpointManagementInterface.setBreakAll(! breakpointManagementInterface.isBreakAll());
+                		getBreakPanel().setBreakAll(! getBreakPanel().isBreakAll());
                 	} else {
                     	// Toggle break on requests
-                		breakpointManagementInterface.setBreakAllRequests(! breakpointManagementInterface.isBreakRequest());
+                		getBreakPanel().setBreakAllRequests(! getBreakPanel().isBreakRequest());
                 	}
                 }
             });
@@ -376,10 +376,10 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
                 public void actionPerformed(java.awt.event.ActionEvent e) {
                 	if (getOptionsParam().getButtonMode() == BreakpointsParam.BUTTON_MODE_SIMPLE) {
                     	// Single button mode - toggle break on all
-                		breakpointManagementInterface.setBreakAll(! breakpointManagementInterface.isBreakAll());
+                		getBreakPanel().setBreakAll(! getBreakPanel().isBreakAll());
                 	} else {
                     	// Toggle break on Responses
-                    	breakpointManagementInterface.setBreakAllResponses(! breakpointManagementInterface.isBreakResponse());
+                    	getBreakPanel().setBreakAllResponses(! getBreakPanel().isBreakResponse());
                 	}
                 }
             });
@@ -394,9 +394,9 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
             menuStep.addActionListener(new java.awt.event.ActionListener() {
                 @Override
                 public void actionPerformed(java.awt.event.ActionEvent e) {
-                	if (breakpointManagementInterface.isHoldMessage(null)) {
+                	if (getBreakPanel().isHoldMessage()) {
                 		// Menu currently always enabled, but dont do anything unless a message is being held
-                		breakpointManagementInterface.step();
+                		getBreakPanel().step();
                 	}
                 }
             });
@@ -411,9 +411,9 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
             menuContinue.addActionListener(new java.awt.event.ActionListener() {
                 @Override
                 public void actionPerformed(java.awt.event.ActionEvent e) {
-                	if (breakpointManagementInterface.isHoldMessage(null)) {
+                	if (getBreakPanel().isHoldMessage()) {
                 		// Menu currently always enabled, but dont do anything unless a message is being held
-                		breakpointManagementInterface.cont();
+                		getBreakPanel().cont();
                 	}
                 }
             });
@@ -428,9 +428,9 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
             menuDrop.addActionListener(new java.awt.event.ActionListener() {
                 @Override
                 public void actionPerformed(java.awt.event.ActionEvent e) {
-                	if (breakpointManagementInterface.isHoldMessage(null)) {
+                	if (getBreakPanel().isHoldMessage()) {
                 		// Menu currently always enabled, but dont do anything unless a message is being held
-                		breakpointManagementInterface.drop();
+                		getBreakPanel().drop();
                 	}
                 }
             });
@@ -480,42 +480,22 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
         return menuHttpBreakpoint;
     }
 
-	/**
-     * @deprecated (TODO add version) Use modal breakpoint dialogues instead of relying on this behaviour.
-	 */
-    @Deprecated
 	public boolean canAddBreakpoint() {
 		return (currentDialogType == DialogType.NONE || currentDialogType == DialogType.ADD);
 	}
     
-    /**
-     * @deprecated (TODO add version) Use modal breakpoint dialogues instead of relying on this behaviour.
-     */
-    @Deprecated
 	public boolean canEditBreakpoint() {
 		return (currentDialogType == DialogType.NONE || currentDialogType == DialogType.EDIT);
 	}
 	
-    /**
-     * @deprecated (TODO add version) Use modal breakpoint dialogues instead of relying on this behaviour.
-     */
-    @Deprecated
 	public boolean canRemoveBreakpoint() {
 		return (currentDialogType == DialogType.NONE || currentDialogType == DialogType.REMOVE);
 	}
 	
-    /**
-     * @deprecated (TODO add version) Use modal breakpoint dialogues instead of relying on this behaviour.
-     */
-    @Deprecated
 	public void dialogShown(DialogType type) {
 	    currentDialogType = type;
 	}
 	
-    /**
-     * @deprecated (TODO add version) Use modal breakpoint dialogues instead of relying on this behaviour.
-     */
-    @Deprecated
 	public void dialogClosed() {
 	    currentDialogType = DialogType.NONE;
 	}
@@ -562,14 +542,14 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
         if (getView() == null) {
             return;
         }
-		breakpointManagementInterface.init();
+		getBreakPanel().init();
 	}
 	
 	private void sessionAboutToChange() {
         if (getView() == null) {
             return;
         }
-	    breakpointManagementInterface.reset();
+	    getBreakPanel().reset();
 	}
 	
 	@Override
@@ -615,7 +595,7 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
         if (getView() == null) {
             return;
         }
-		this.breakpointManagementInterface.sessionModeChanged(mode);
+		this.getBreakPanel().sessionModeChanged(mode);
 	}
 
 
@@ -630,29 +610,17 @@ public class ExtensionBreak extends ExtensionAdaptor implements SessionChangedLi
 
 	@Override
 	public void optionsChanged(OptionsParam optionsParam) {
-		applyViewOptions(optionsParam);
-	}
-
-	/**
-	 * Applies the given (view) options to the break components, by setting the location of the break buttons and the break
-	 * buttons mode.
-	 * <p>
-	 * The call to this method has no effect if there's no view.
-	 *
-	 * @param options the current options
-	 */
-	private void applyViewOptions(OptionsParam options) {
-		if (getView() == null) {
-			return;
+		if (View.isInitialised()) {
+			this.getBreakPanel().setButtonMode(
+					optionsParam.getParamSet(BreakpointsParam.class).getButtonMode());
 		}
-
-		breakPanel.setButtonsLocation(options.getViewParam().getBrkPanelViewOption());
-		breakPanel.setButtonMode(options.getParamSet(BreakpointsParam.class).getButtonMode());
 	}
 
 	@Override
 	public void optionsLoaded() {
-		applyViewOptions(getModel().getOptionsParam());
+		if (View.isInitialised()) {
+			this.getBreakPanel().setButtonMode(this.getOptionsParam().getButtonMode());
+		}
 	}
 	
 	public boolean isInScopeOnly() {

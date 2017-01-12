@@ -55,6 +55,9 @@ public class PopupMenuEmbeddedBrowser extends ExtensionPopupMenuItem {
     private BrowserLauncher launcher = null;
     private boolean supported = true;
 
+	/**
+     * 
+     */
     public PopupMenuEmbeddedBrowser() {
         super();
  		initialize();

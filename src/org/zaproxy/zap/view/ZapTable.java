@@ -240,7 +240,7 @@ public class ZapTable extends JXTable {
         }
 
         @Override
-        public void populatePopup() {
+        protected void populatePopup() {
             super.populatePopup();
 
             if (customActions != null && popup instanceof DefaultColumnControlPopup) {

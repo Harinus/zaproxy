@@ -25,7 +25,6 @@ import java.util.Map;
 
 import javax.help.MergeHelpUtilities;
 import javax.help.NavigatorView;
-import javax.help.SortMerge;
 import javax.help.TreeItem;
 import javax.help.UniteAppendMerge;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -68,8 +67,6 @@ public class ZapTocMerger extends UniteAppendMerge {
 
     private static final String DEFAULT_MERGE_TYPE = ZapTocMerger.class.getCanonicalName();
 
-    private static final String ADDONS_TOC_ID = "addons";
-
     /**
      * A map containing the requirements to do forced merging.
      * <p>
@@ -83,7 +80,7 @@ public class ZapTocMerger extends UniteAppendMerge {
         // Note: The attribute "tocid" should match the ones defined in the toc.xml file.
         // Note 2: the TOC tree node names are hard coded because the "older" add-ons use the same (hard coded) names.
         tempMap.put("toplevelitem", new ForceMergeRequirement(1, "ZAP User Guide"));
-        tempMap.put(ADDONS_TOC_ID, new ForceMergeRequirement(2, "Add Ons"));
+        tempMap.put("addons", new ForceMergeRequirement(2, "Add Ons"));
         TOC_IDS_FORCE_MERGE_MAP = Collections.unmodifiableMap(tempMap);
     }
 
@@ -183,9 +180,6 @@ public class ZapTocMerger extends UniteAppendMerge {
         if (isSameTOCID(masterAtM, slaveNodeChild) || isForceMerge(masterAtM, slaveNodeChild)) {
             MergeHelpUtilities.mergeNodes(DEFAULT_MERGE_TYPE, masterAtM, slaveNodeChild);
             slaveNodeChild.removeFromParent();
-            if (ADDONS_TOC_ID.equals(getTOCID(masterAtM))) {
-                SortMerge.sortNode(masterAtM, MergeHelpUtilities.getLocale(masterAtM));
-            }
             return true;
         }
         return false;

@@ -26,7 +26,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -62,6 +65,19 @@ public class SqlTableHistory extends SqlAbstractTable implements TableHistory {
     private static final String NOTE        = DbSQL.getSQL("history.field.note");
     private static final String RESPONSE_FROM_TARGET_HOST = DbSQL.getSQL("history.field.responsefromtargethost");
     
+    /**
+     * The {@code Set} of history types marked as temporary.
+     * <p>
+     * By default the only temporary history type is {@code HistoryReference#TYPE_TEMPORARY}.
+     * <p>
+     * Iterations must be done in a {@code synchronized} block with {@code temporaryHistoryTypes}.
+     * 
+     * @since 2.4
+     * @see #setHistoryTypeAsTemporary(int)
+     * @see HistoryReference#TYPE_TEMPORARY
+     * @see Collections#synchronizedSet(Set)
+     */
+    private static Set<Integer> temporaryHistoryTypes = Collections.synchronizedSet(new HashSet<Integer>());
     private int lastInsertedIndex;
     private static boolean isExistStatusCode = false;
 
@@ -69,6 +85,11 @@ public class SqlTableHistory extends SqlAbstractTable implements TableHistory {
     private static final Logger log = Logger.getLogger(SqlTableHistory.class);
 
     private boolean bodiesAsBytes; 
+
+    static {
+        temporaryHistoryTypes.add(Integer.valueOf(HistoryReference.TYPE_TEMPORARY));
+        temporaryHistoryTypes.add(Integer.valueOf(HistoryReference.TYPE_SCANNER_TEMPORARY));
+    }
 
     public SqlTableHistory() {
     }
@@ -148,6 +169,7 @@ public class SqlTableHistory extends SqlAbstractTable implements TableHistory {
 			    DbUtils.executeAndClose(connection.prepareStatement(DbSQL.getSQL("history.ps.addrespfromtarget")));
 			    DbUtils.executeUpdateAndClose(connection.prepareStatement(DbSQL.getSQL("history.ps.setrespfromtarget")));
 			}
+			/* */
 			
 			int requestbodysizeindb = DbUtils.getColumnSize(connection, TABLE_NAME, REQBODY);
 			int responsebodysizeindb = DbUtils.getColumnSize(connection, TABLE_NAME, RESBODY);
@@ -585,24 +607,32 @@ public class SqlTableHistory extends SqlAbstractTable implements TableHistory {
     }
 
     /**
-     * @deprecated (2.5.0) Use {@link HistoryReference#addTemporaryType(int)} instead.
+     * Sets the given {@code historyType} as temporary.
+     *
      * @since 2.4
      * @param historyType the history type that will be set as temporary
+     * @see #unsetHistoryTypeAsTemporary(int)
      * @see #deleteTemporary()
      */
-    @Deprecated
     public static void setHistoryTypeAsTemporary(int historyType) {
+        temporaryHistoryTypes.add(Integer.valueOf(historyType));
     }
 
     /**
-     * @deprecated (2.5.0) Use {@link HistoryReference#removeTemporaryType(int)} instead.
+     * Unsets the given {@code historyType} as temporary.
+     * <p>
+     * Attempting to remove the default temporary history type ({@code HistoryReference#TYPE_TEMPORARY}) has no effect.
+     *
      * @since 2.4
      * @param historyType the history type that will be marked as temporary
+     * @see #setHistoryTypeAsTemporary(int)
      * @see #deleteTemporary()
      */
-    @Deprecated
     public static void unsetHistoryTypeAsTemporary(int historyType) {
-        HistoryReference.removeTemporaryType(historyType);
+        if (HistoryReference.TYPE_TEMPORARY == historyType) {
+            return;
+        }
+        temporaryHistoryTypes.remove(Integer.valueOf(historyType));
     }
 
     /* (non-Javadoc)
@@ -613,7 +643,7 @@ public class SqlTableHistory extends SqlAbstractTable implements TableHistory {
 	    SqlPreparedStatementWrapper psDeleteTemp = null;
         try {
 		    psDeleteTemp = DbSQL.getSingleton().getPreparedStatement( "history.ps.deletetemp");
-			for (Integer type : HistoryReference.getTemporaryTypes()) {
+			for (Integer type : temporaryHistoryTypes) {
 				psDeleteTemp.getPs().setInt(1, type);
 				psDeleteTemp.getPs().execute();
 			}

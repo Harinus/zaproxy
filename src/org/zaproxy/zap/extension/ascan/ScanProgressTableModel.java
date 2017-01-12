@@ -37,7 +37,6 @@ public class ScanProgressTableModel extends AbstractTableModel {
         Constant.messages.getString("ascan.policy.table.strength"),
         Constant.messages.getString("ascan.progress.table.progress"),
         Constant.messages.getString("ascan.progress.table.time"),
-        Constant.messages.getString("ascan.progress.table.reqs"),
         Constant.messages.getString("ascan.progress.table.status"),
     };
     
@@ -47,6 +46,9 @@ public class ScanProgressTableModel extends AbstractTableModel {
     private String totRequests;
     private String totTime;
 
+    /**
+     *
+     */
     public ScanProgressTableModel() {
         super();
         values = new ArrayList<ScanProgressItem>();
@@ -72,8 +74,8 @@ public class ScanProgressTableModel extends AbstractTableModel {
             return 0;
         }
         
-        // Add other 2 rows for the final table values...
-        return values.size() + 2;
+        // Add other 3 rows for the final table values...
+        return values.size() + 3;
     }
 
     /**
@@ -109,9 +111,6 @@ public class ScanProgressTableModel extends AbstractTableModel {
                     return getElapsedTimeLabel(item.getElapsedTime());
 
                 case 4:
-                	return item.getReqCount();
-                	
-                case 5:
                     ScanProgressActionIcon action = null;
                     if (item.isCompleted() || item.isRunning() || item.isSkipped()) {
                         if (row < actions.size()) {
@@ -139,22 +138,31 @@ public class ScanProgressTableModel extends AbstractTableModel {
             return null;
             
         } else if (row == (values.size() + 1)) {
-            // The second line after values should contains the totals
+            // The second line after values should contains the total elapsed time
             switch (col) {
                 case 0:
-                    return Constant.messages.getString("ascan.progress.label.totals");                    
+                    return Constant.messages.getString("ascan.progress.label.totalTime");                    
                 
-                case 3:
+                case 1:
                     return totTime;
-                    
-                case 4:
+                
+                default:
+                    return null;
+            }
+            
+        } else {
+            // Probably we're at the last line so we print out the total requests
+            switch (col) {
+                case 0:
+                    return Constant.messages.getString("ascan.progress.label.requests");                    
+                
+                case 1:
                     return totRequests;                    
                 
                 default:
                     return null;
             }
         }
-        return null;
     }
 
     /**

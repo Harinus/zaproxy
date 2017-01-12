@@ -27,7 +27,6 @@ use Zap\Acsrf;
 use Zap\AjaxSpider;
 use Zap\Ascan;
 use Zap\Authentication;
-use Zap\Authorization;
 use Zap\Autoupdate;
 use Zap\Brk;
 use Zap\Context;
@@ -42,7 +41,6 @@ use Zap\Script;
 use Zap\Search;
 use Zap\SessionManagement;
 use Zap\Spider;
-use Zap\Stats;
 use Zap\Users;
 
 class ZapError extends \Exception{
@@ -80,7 +78,6 @@ class Zapv2 {
 		$this->ajaxSpider = new AjaxSpider($this);
 		$this->ascan = new Ascan($this);
 		$this->authentication = new Authentication($this);
-		$this->authorization = new Authorization($this);
 		$this->autoupdate = new Autoupdate($this);
 		$this->brk = new Brk($this);
 		$this->context = new Context($this);
@@ -95,7 +92,6 @@ class Zapv2 {
 		$this->search = new Search($this);
 		$this->sessionManagement = new SessionManagement($this);
 		$this->spider = new Spider($this);
-		$this->stats = new Stats($this);
 		$this->users = new Users($this);
 	}
 

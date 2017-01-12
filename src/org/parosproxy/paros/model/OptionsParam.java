@@ -36,8 +36,6 @@
 // ZAP: 2014-02-04 Added GlobalExcludeURL functionality:  Issue: TODO - insert list here.
 // ZAP: 2014/03/23 Issue 1097: Move "Run applications" (invoke) extension to zap-extensions project
 // ZAP: 2015/04/09 Generify getParamSet(Class) to avoid unnecessary casts
-// ZAP: 2016/11/17 Issue 2701 Support Factory Reset
-// ZAP: 2016/12/06 Add ExtensionParam
 
 package org.parosproxy.paros.model;
 
@@ -58,7 +56,6 @@ import org.parosproxy.paros.network.ConnectionParam;
 import org.zaproxy.zap.extension.anticsrf.AntiCsrfParam;
 import org.zaproxy.zap.extension.api.OptionsParamApi;
 import org.zaproxy.zap.extension.autoupdate.OptionsParamCheckForUpdates;
-import org.zaproxy.zap.extension.ext.ExtensionParam;
 import org.zaproxy.zap.extension.globalexcludeurl.GlobalExcludeURLParam;
 
 import ch.csnc.extension.util.OptionsParamExperimentalSliSupport;
@@ -89,8 +86,6 @@ public class OptionsParam extends AbstractParam {
      */
 	// ZAP: Added the instance variable.
     private DatabaseParam databaseParam = new DatabaseParam();
-
-    private ExtensionParam extensionParam = new ExtensionParam();
 
 	private Vector<AbstractParam> paramSetList = new Vector<>();
 	private Map<Class<? extends AbstractParam>, AbstractParam> abstractParamsMap = new HashMap<>();
@@ -198,7 +193,6 @@ public class OptionsParam extends AbstractParam {
 		getGlobalExcludeURLParam().load(getConfig());
 		getExperimentalFeaturesParam().load(getConfig());
         getDatabaseParam().load(getConfig());
-        getExtensionParam().load(getConfig());
 		
 		String userDir = null;
 		try {
@@ -217,18 +211,11 @@ public class OptionsParam extends AbstractParam {
 				logger.error(e1.getMessage(), e1);
 			}
 		}
-    }
-    
-    public void reloadConfigParamSets() {
-        for (int i=0; i<paramSetList.size(); i++) {
-            paramSetList.get(i).load(getConfig());
-        }
-    }
-    
-    public void resetAll() {
-        for (int i=0; i<paramSetList.size(); i++) {
-            paramSetList.get(i).reset();
-        }
+		
+//		for (int i=0; i<paramSetList.size(); i++) {
+//		    AbstractParam param = (AbstractParam) paramSetList.get(i);
+//		    param.load(getConfig());
+//		}
     }
     
     public boolean isGUI() {
@@ -287,13 +274,4 @@ public class OptionsParam extends AbstractParam {
         return databaseParam;
     }
 	
-	/**
-	 * Gets the extensions' enabled state configurations.
-	 *
-	 * @return the extensions' enabled state configurations.
-	 * @since TODO add version
-	 */
-	public ExtensionParam getExtensionParam() {
-		return extensionParam;
-	}
 }

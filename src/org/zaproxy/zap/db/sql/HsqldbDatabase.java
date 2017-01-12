@@ -22,11 +22,29 @@ package org.zaproxy.zap.db.sql;
 
 import java.io.File;
 
-public class HsqldbDatabase extends SqlDatabase {
+import org.apache.log4j.Logger;
+import org.parosproxy.paros.db.Database;
+
+
+
+public class HsqldbDatabase extends SqlDatabase implements Database {
 	
+    private static final Logger log = Logger.getLogger(HsqldbDatabase.class);
+
 	public HsqldbDatabase() {
 		super();
 	}
+	
+    /* (non-Javadoc)
+	 * @see org.parosproxy.paros.db.DatabaseIF#close(boolean)
+	 */
+    // ZAP: Added JavaDoc.
+    @Override
+	public void close(boolean compact) {
+        // ZAP: Moved the content of this method to the method close(boolean,
+        // boolean) and changed to call that method instead.
+        close(compact, true);
+    }
 
     /* (non-Javadoc)
 	 * @see org.parosproxy.paros.db.DatabaseIF#deleteSession(java.lang.String)
@@ -34,7 +52,7 @@ public class HsqldbDatabase extends SqlDatabase {
     @Override
 	public void deleteSession(String sessionName) {
     	super.deleteSession(sessionName);
-		logger.debug("deleteSession " + sessionName);
+		log.debug("deleteSession " + sessionName);
 
 		deleteDbFile(new File(sessionName));
         deleteDbFile(new File(sessionName + ".data"));
@@ -45,17 +63,19 @@ public class HsqldbDatabase extends SqlDatabase {
     }
     
     private void deleteDbFile (File file) {
-    	logger.debug("Deleting " + file.getAbsolutePath());
+    	log.debug("Deleting " + file.getAbsolutePath());
 		if (file.exists()) {
 			if (! file.delete()) {
-	            logger.error("Failed to delete " + file.getAbsolutePath());
+	            log.error("Failed to delete " + file.getAbsolutePath());
 			}
 		}
     }
 
 	@Override
-	protected SqlDatabaseServer createDatabaseServer(String path) throws Exception {
-	    return new HsqldbDatabaseServer(path);
+	public void open(String path) throws ClassNotFoundException, Exception {
+		log.debug("open " + path);
+	    setDatabaseServer(new HsqldbDatabaseServer(path));
+	    notifyListenerDatabaseOpen();
 	}
 
     /* (non-Javadoc)
@@ -63,7 +83,7 @@ public class HsqldbDatabase extends SqlDatabase {
 	 */
 	@Override
 	public void close(boolean compact, boolean cleanup) {
-		logger.debug("close");
+		log.debug("close");
 		super.close(compact, cleanup);
 	    if (this.getDatabaseServer() == null) {
 	    	return;
@@ -73,7 +93,7 @@ public class HsqldbDatabase extends SqlDatabase {
 	        // shutdown
 	    	((HsqldbDatabaseServer)this.getDatabaseServer()).shutdown(compact);
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
+            log.error(e.getMessage(), e);
         }
 	}
 	

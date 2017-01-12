@@ -84,6 +84,9 @@ public class ScanProgressItem {
         return "";
     }
 
+    /**
+     *
+     */
     public long getElapsedTime() {
         if ((status == STATUS_PENDING) || (plugin.getTimeStarted() == null)) {
             return -1;
@@ -95,16 +98,18 @@ public class ScanProgressItem {
 
     /**
      * Get back the percentage of completion.
-     * 
+     * Currently this is a fake percentage which set 50%
+     * when the plugin begins and 100% when finished...
+     * Should be improved using HostProcess informations regarding
+     * the overall nodes that need to be scanned and the current
+     * executions done...
      * @return the percentage value from 0 to 100
      */
     public int getProgressPercentage()  {
         // Implemented using node counts...
         if (isRunning()) {
-            int progress = (hProcess.getTestCurrentCount(plugin) * 100) / hProcess.getTestTotalCount();
-            // Make sure not return 100 (or more) if still running...
-            // That might happen if more nodes are being scanned that the ones enumerated at the beginning.
-            return progress >= 100 ? 99 : progress;
+            return (int)((hProcess.getTestCurrentCount(plugin) * 100) / hProcess.getTestTotalCount());
+            
         } else if (isCompleted()) {
             return 100;        
             
@@ -130,30 +135,19 @@ public class ScanProgressItem {
     }
     
     /**
-     * Tells whether or not the plugin was skipped.
      * 
-     * @return {@code true} if the plugin was skipped, {@code false} otherwise.
-     * @since 2.4.0
-     * @see #getSkippedReason()
+     * @return 
      */
     public boolean isSkipped() {
         return hProcess.isSkipped(plugin);
     }
 
     /**
-     * Gets the reason why the plugin was skipped.
-     *
-     * @return the reason why the plugin was skipped, might be {@code null} if there's no reason
-     * @since TODO add version
-     * @see #isSkipped()
+     * 
      */
-    public String getSkippedReason() {
-        return hProcess.getSkippedReason(plugin);
-    }
-
     public void skip() {
         if (isRunning()) {
-            hProcess.pluginSkipped(plugin, Constant.messages.getString("ascan.progress.label.skipped.reason.user"));
+            hProcess.pluginSkipped(plugin);
         }
     }
     
@@ -164,13 +158,4 @@ public class ScanProgressItem {
     protected Plugin getPlugin() {
         return plugin;
     }
-
-	public int getReqCount() {
-		return hProcess.getPluginRequestCount(plugin.getId());
-	}
-
-	@Override
-	public String toString() {
-		return Integer.toString(getProgressPercentage());
-	}
 }

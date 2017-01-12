@@ -53,6 +53,9 @@ public class PolicyDialog extends AbstractParamDialog {
         initialize();
     }
 
+    /**
+     * 
+     */
     private void initialize() {
         this.setTitle(POLICY);
         this.setSize(750, 420);
@@ -67,9 +70,8 @@ public class PolicyDialog extends AbstractParamDialog {
     }
 
     /**
-     * Adds the given panel, positioned under the root node and in alphabetic order.
-     *
-     * @param panel the panel to add, must not be {@code null}.
+     * 
+     * @param panel 
      */
     public void addPolicyPanel(AbstractParamPanel panel) {
         this.additionalPanels.add(panel);

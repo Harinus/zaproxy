@@ -39,8 +39,6 @@
 // ZAP: 2013/05/02 Re-arranged all modifiers into Java coding standard order
 // ZAP: 2013/12/09 Set Content-type only in case of POST or PUT HTTP methods
 // ZAP: 2015/08/07 Issue 1768: Update to use a more recent default user agent
-// ZAP: 2016/06/17 Remove redundant initialisations of instance variables
-// ZAP: 2016/09/26 JavaDoc tweaks
 
 package org.parosproxy.paros.network;
 
@@ -82,48 +80,45 @@ public class HttpRequestHeader extends HttpHeader {
     //	= Pattern.compile("([^:]+)\\s*?:?\\s*?(\\d*?)");
     private static final Pattern patternImage = Pattern.compile("\\.(bmp|ico|jpg|jpeg|gif|tiff|tif|png)\\z", Pattern.CASE_INSENSITIVE);
     private static final Pattern patternPartialRequestLine = Pattern.compile("\\A *(OPTIONS|GET|HEAD|POST|PUT|DELETE|TRACE|CONNECT)\\b", Pattern.CASE_INSENSITIVE);
-    private String mMethod;
-    private URI mUri;
-    private String mHostName;
+    private String mMethod = "";
+    private URI mUri = null;
+    private String mHostName = "";
     
     /**
      * The host port number of this request message, a non-negative integer.
-     * <p>
-     * Default is {@code 80}.
      * <p>
      * <strong>Note:</strong> All the modifications to the instance variable
      * {@code mHostPort} must be done through the method
      * {@code setHostPort(int)}, so a valid and correct value is set when no
      * port number is defined (which is represented with the negative integer
      * -1).
+     * </p>
      *
      * @see #getHostPort()
      * @see #setHostPort(int)
      * @see URI#getPort()
      */
     private int mHostPort;
-    private boolean mIsSecure;
+    private boolean mIsSecure = false;
 
     /**
      * Constructor for an empty header.
      *
      */
     public HttpRequestHeader() {
-        super();
-        mMethod = "";
-        mHostName = "";
-        mHostPort = 80;
+        clear();
     }
 
     /**
      * Constructor of a request header with the string.
      *
-     * @param data the request header
-     * @param isSecure {@code true} if the request should be secure, {@code false} otherwise
-     * @throws HttpMalformedHeaderException if the request being set is malformed
-     * @see #setSecure(boolean)
+     * @param data
+     * @param isSecure If this request header is secure. URL will be converted
+     * to HTTPS if secure = true.
+     * @throws HttpMalformedHeaderException
      */
     public HttpRequestHeader(String data, boolean isSecure) throws HttpMalformedHeaderException {
+        this();
         setMessage(data, isSecure);
     }
 
@@ -131,10 +126,11 @@ public class HttpRequestHeader extends HttpHeader {
      * Constructor of a request header with the string. Whether this is a secure
      * header depends on the URL given.
      *
-     * @param data the request header
-     * @throws HttpMalformedHeaderException if the request being set is malformed
+     * @param data
+     * @throws HttpMalformedHeaderException
      */
     public HttpRequestHeader(String data) throws HttpMalformedHeaderException {
+        this();
         setMessage(data);
     }
 
@@ -146,6 +142,7 @@ public class HttpRequestHeader extends HttpHeader {
         mUri = null;
         mHostName = "";
         setHostPort(-1);
+        mMsgHeader = "";
 
     }
 
@@ -192,10 +189,10 @@ public class HttpRequestHeader extends HttpHeader {
     /**
      * Set this request header with the given message.
      *
-     * @param data the request header
-     * @param isSecure {@code true} if the request should be secure, {@code false} otherwise
-     * @throws HttpMalformedHeaderException if the request being set is malformed
-     * @see #setSecure(boolean)
+     * @param data
+     * @param isSecure If this request header is secure. URL will be converted
+     * to HTTPS if secure = true.
+     * @throws HttpMalformedHeaderException
      */
     public void setMessage(String data, boolean isSecure) throws HttpMalformedHeaderException {
         super.setMessage(data);
@@ -230,7 +227,7 @@ public class HttpRequestHeader extends HttpHeader {
     /**
      * Get the HTTP method (GET, POST ... etc).
      *
-     * @return the request method
+     * @return
      */
     public String getMethod() {
         return mMethod;
@@ -239,7 +236,7 @@ public class HttpRequestHeader extends HttpHeader {
     /**
      * Set the HTTP method of this request header.
      *
-     * @param method the new method, must not be {@code null}.
+     * @param method
      */
     public void setMethod(String method) {
         mMethod = method.toUpperCase();
@@ -248,19 +245,20 @@ public class HttpRequestHeader extends HttpHeader {
     /**
      * Get the URI of this request header.
      *
-     * @return the request URI
+     * @return
      */
     public URI getURI() {
         return mUri;
     }
 
     /**
-     * Sets the URI of this request header.
+     * Set the URI of this request header.
      *
-     * @param uri the new request URI
-     * @throws URIException if an error occurred while setting the request URI
+     * @param uri
+     * @throws URIException
+     * @throws NullPointerException
      */
-    public void setURI(URI uri) throws URIException {
+    public void setURI(URI uri) throws URIException, NullPointerException {
 
         if (uri.getScheme() == null || uri.getScheme().equals("")) {
             mUri = new URI(HTTP + "://" + getHeader(HOST) + "/" + mUri.toString(), true);
@@ -282,7 +280,7 @@ public class HttpRequestHeader extends HttpHeader {
     /**
      * Get if this request header is under secure connection.
      *
-     * @return {@code true} if the request is secure, {@code false} otherwise
+     * @return
      * @deprecated Replaced by {@link #isSecure()}. It will be removed in a
      * future release.
      */
@@ -302,12 +300,13 @@ public class HttpRequestHeader extends HttpHeader {
     }
 
     /**
-     * Sets whether or not the request is done using a secure scheme, HTTPS.
+     * Set if this request header is under secure connection.
      *
-     * @param isSecure {@code true} if the request should be secure, {@code false} otherwise
-     * @throws URIException if an error occurred while rebuilding the request URI
+     * @param isSecure
+     * @throws URIException
+     * @throws NullPointerException
      */
-    public void setSecure(boolean isSecure) throws URIException {
+    public void setSecure(boolean isSecure) throws URIException, NullPointerException {
         mIsSecure = isSecure;
 
         if (mUri == null) {
@@ -355,9 +354,10 @@ public class HttpRequestHeader extends HttpHeader {
     /**
      * Parse this request header.
      *
-     * @param isSecure {@code true} if the request is secure, {@code false} otherwise
-     * @throws URIException if failed to parse the URI
-     * @throws HttpMalformedHeaderException if the request being parsed is malformed
+     * @param isSecure
+     * @return
+     * @throws URIException
+     * @throws NullPointerException
      */
     private void parse(boolean isSecure) throws URIException, HttpMalformedHeaderException {
 
@@ -508,8 +508,8 @@ public class HttpRequestHeader extends HttpHeader {
      * Return if the data given is a request header basing on the first start
      * line.
      *
-     * @param data the data to be checked
-     * @return {@code true} if the data contains a request line, {@code false} otherwise.
+     * @param data
+     * @return
      */
     public static boolean isRequestLine(String data) {
         return patternPartialRequestLine.matcher(data).find();

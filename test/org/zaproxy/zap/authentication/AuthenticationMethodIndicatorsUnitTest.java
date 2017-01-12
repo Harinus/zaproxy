@@ -1,18 +1,14 @@
 package org.zaproxy.zap.authentication;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-
-import org.apache.commons.httpclient.URI;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.parosproxy.paros.network.HttpMessage;
-import org.parosproxy.paros.network.HttpRequestHeader;
+
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AuthenticationMethodIndicatorsUnitTest {
@@ -36,9 +32,6 @@ public class AuthenticationMethodIndicatorsUnitTest {
 	@Before
 	public void setUp() throws Exception {
 		loginMessage = new HttpMessage();
-		HttpRequestHeader header = new HttpRequestHeader();
-		header.setURI(new URI("http://www.example.com", true));
-		loginMessage.setRequestHeader(header);
 		method = Mockito.mock(AuthenticationMethod.class, Mockito.CALLS_REAL_METHODS);
 	}
 

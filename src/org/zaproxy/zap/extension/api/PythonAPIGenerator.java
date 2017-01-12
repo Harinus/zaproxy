@@ -17,31 +17,29 @@
  */
 package org.zaproxy.zap.extension.api;
 
-import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.ResourceBundle;
 
-public class PythonAPIGenerator extends AbstractAPIGenerator {
+import org.parosproxy.paros.Constant;
 
-	/**
-	 * Default output directory in zap-api-python project.
-	 */
-	private static final String DEFAULT_OUTPUT_DIR = "../zap-api-python/src/zapv2/";
-
+public class PythonAPIGenerator {
+	private File dir; 
+	private boolean optional = false;
+	
 	private final String HEADER = 
 			"# Zed Attack Proxy (ZAP) and its related class files.\n" +
 			"#\n" +
 			"# ZAP is an HTTP/HTTPS proxy for assessing web application security.\n" +
 			"#\n" +
-			"# Copyright 2016 the ZAP development team\n" +
+			"# Copyright 2015 the ZAP development team\n" +
 			"#\n" +
 			"# Licensed under the Apache License, Version 2.0 (the \"License\");\n" +
 			"# you may not use this file except in compliance with the License.\n" +
@@ -58,6 +56,11 @@ public class PythonAPIGenerator extends AbstractAPIGenerator {
 			"This file was automatically generated.\n" +
 			"\"\"\"\n\n";
 
+	private final String OPTIONAL_MASSAGE = "This component is optional and therefore the API will only work if it is installed"; 
+
+	private ResourceBundle msgs = ResourceBundle.getBundle("lang." + Constant.MESSAGES_PREFIX, Locale.ENGLISH,
+		ResourceBundle.Control.getControl(ResourceBundle.Control.FORMAT_PROPERTIES));
+	
 	/**
 	 * Map any names which are reserved in python to something legal
 	 */
@@ -65,30 +68,24 @@ public class PythonAPIGenerator extends AbstractAPIGenerator {
     static {
         Map<String, String> initMap = new HashMap<>();
         initMap.put("break", "brk");
-        initMap.put("continue", "cont");
         nameMap = Collections.unmodifiableMap(initMap);
     }
 
     public PythonAPIGenerator() {
-    	super(DEFAULT_OUTPUT_DIR);
+    	dir = new File("python/api/src/zapv2"); 
     }
 
     public PythonAPIGenerator(String path, boolean optional) {
-    	super(path, optional);
+    	dir = new File(path); 
+    	this.optional = optional;
     }
 
-    /**
-     * Generates the API client files of the given API implementors.
-     *
-     * @param implementors the implementors
-     * @throws IOException if an error occurred while generating the APIs.
-     * @deprecated (TODO add version) Use {@link #generateAPIFiles(List)} instead.
-     */
-    @Deprecated
-    public void generatePythonFiles(List<ApiImplementor> implementors) throws IOException {
-        this.generateAPIFiles(implementors);
-    }
-
+	public void generatePythonFiles(List<ApiImplementor> implementors) throws IOException {
+		for (ApiImplementor imp : implementors) {
+			this.generatePythonComponent(imp);
+		}
+	}
+	
 	private void generatePythonElement(ApiElement element, String component, 
 			String type, Writer out) throws IOException {
 		
@@ -97,7 +94,7 @@ public class PythonAPIGenerator extends AbstractAPIGenerator {
 							(element.getOptionalParamNames() != null &&
 								element.getOptionalParamNames().size() > 0);
 				
-		if (!hasParams && type.equals(VIEW_ENDPOINT)) {
+		if (!hasParams && type.equals("view")) {
 			out.write("    @property\n");
 		}
 		out.write("    def " + createFunctionName(element.getName()) + "(self");
@@ -109,11 +106,11 @@ public class PythonAPIGenerator extends AbstractAPIGenerator {
 		}
 		if (element.getOptionalParamNames() != null) {
 			for (String param : element.getOptionalParamNames()) {
-				out.write(", " + param.toLowerCase() + "=None");
+				out.write(", " + param.toLowerCase() + "=''");
 			}
 		}
 
-		if (type.equals(ACTION_ENDPOINT) || type.equals(OTHER_ENDPOINT)) {
+		if (type.equals("action") || type.equals("other")) {
 			// Always add the API key - we've no way of knowing if it will be required or not
 			out.write(", " + API.API_KEY_PARAM + "=''");
 			hasParams = true;
@@ -128,67 +125,31 @@ public class PythonAPIGenerator extends AbstractAPIGenerator {
 			descTag = component + ".api." + type + "." + element.getName();
 		}
 		try {
-			String desc = getMessages().getString(descTag);
+			String desc = msgs.getString(descTag);
 			out.write("        \"\"\"\n");
 			out.write("        " + desc + "\n");
-			if (isOptional()) {
-				out.write("        " + OPTIONAL_MESSAGE + "\n");
+			if (optional) {
+				out.write("        " + OPTIONAL_MASSAGE + "\n");
 			}
 			out.write("        \"\"\"\n");
 		} catch (Exception e) {
 			// Might not be set, so just print out the ones that are missing
 			System.out.println("No i18n for: " + descTag);
-			if (isOptional()) {
+			if (optional) {
 				out.write("        \"\"\"\n");
-				out.write("        " + OPTIONAL_MESSAGE + "\n");
+				out.write("        " + OPTIONAL_MASSAGE + "\n");
 				out.write("        \"\"\"\n");
 			}
 		}
 
 		String method = "_request";
 		String baseUrl = "base";
-		if (type.equals(OTHER_ENDPOINT)) {
+		if (type.equals("other")) {
 			method += "_other";
 			baseUrl += "_other";
 		}
-
-		StringBuilder reqParams = new StringBuilder();
-		if (hasParams) {
-			reqParams.append("{");
-			boolean first = true;
-			if (element.getMandatoryParamNames() != null) {
-				for (String param : element.getMandatoryParamNames()) {
-					if (first) {
-						first = false;
-					} else {
-						reqParams.append(", ");
-					}
-					reqParams.append("'" + param + "' : " + param.toLowerCase());
-				}
-			}
-			if (type.equals(ACTION_ENDPOINT) || type.equals(OTHER_ENDPOINT)) {
-				// Always add the API key - we've no way of knowing if it will be required or not
-				if (!first) {
-					reqParams.append(", ");
-				}
-				reqParams.append("'").append(API.API_KEY_PARAM).append("' : ").append(API.API_KEY_PARAM);
-			}
-			reqParams.append("}");
-
-			if (element.getOptionalParamNames() != null && !element.getOptionalParamNames().isEmpty()) {
-				out.write("        params = ");
-				out.write(reqParams.toString());
-				out.write("\n");
-				reqParams.replace(0, reqParams.length(), "params");
-
-				for (String param : element.getOptionalParamNames()) {
-					out.write("        if " + param.toLowerCase() + " is not None:\n");
-					out.write("            params['" + param + "'] = " + param.toLowerCase() + "\n");
-				}
-			}
-		}
 		
-		if (type.equals(OTHER_ENDPOINT)) {
+		if (type.equals("other")) {
 			out.write("        return ("); 
 		} else {
 			out.write("        return next("); 
@@ -198,15 +159,45 @@ public class PythonAPIGenerator extends AbstractAPIGenerator {
 		
 		// , {'url': url}))
 		if (hasParams) {
-			out.write(", ");
-			out.write(reqParams.toString());
-			out.write(")");
-			if (!type.equals(OTHER_ENDPOINT)) {
+			out.write(", {");
+			boolean first = true;
+			if (element.getMandatoryParamNames() != null) {
+				for (String param : element.getMandatoryParamNames()) {
+					if (first) {
+						first = false;
+					} else {
+						out.write(", ");
+					}
+					out.write("'" + param + "' : " + param.toLowerCase());
+				}
+			}
+			if (element.getOptionalParamNames() != null) {
+				for (String param : element.getOptionalParamNames()) {
+					if (first) {
+						first = false;
+					} else {
+						out.write(", ");
+					}
+					out.write("'" + param + "' : " + param.toLowerCase());
+				}
+			}
+			if (type.equals("action") || type.equals("other")) {
+				// Always add the API key - we've no way of knowing if it will be required or not
+				if (first) {
+					first = false;
+				} else {
+					out.write(", ");
+				}
+				out.write("'" + API.API_KEY_PARAM + "' : " + API.API_KEY_PARAM);
+			}
+
+			out.write("})");
+			if (!type.equals("other")) {
 				out.write(".itervalues())");
 			} else {
 				out.write(")");
 			}
-		} else if (!type.equals(OTHER_ENDPOINT)) {
+		} else if (!type.equals("other")) {
 			out.write(").itervalues())");
 		} else {
 			out.write(")");
@@ -215,11 +206,10 @@ public class PythonAPIGenerator extends AbstractAPIGenerator {
 		
 	}
 
-	@Override
-	protected void generateAPIFiles(ApiImplementor imp) throws IOException {
-		Path file = getDirectory().resolve(createFileName(imp.getPrefix()));
-		System.out.println("Generating " + file.toAbsolutePath());
-		try (BufferedWriter out = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+	private void generatePythonComponent(ApiImplementor imp) throws IOException {
+		File f = new File(this.dir, createFileName(imp.getPrefix()));
+		System.out.println("Generating " + f.getAbsolutePath());
+		try(FileWriter out = new FileWriter(f)) {
 			out.write(HEADER);
 			out.write("class " + safeName(imp.getPrefix()) + "(object):\n\n");
 			out.write("    def __init__(self, zap):\n");
@@ -227,13 +217,13 @@ public class PythonAPIGenerator extends AbstractAPIGenerator {
 			out.write("\n");
 			
 			for (ApiElement view : imp.getApiViews()) {
-				this.generatePythonElement(view, imp.getPrefix(), VIEW_ENDPOINT, out);
+				this.generatePythonElement(view, imp.getPrefix(), "view", out);
 			}
 			for (ApiElement action : imp.getApiActions()) {
-				this.generatePythonElement(action, imp.getPrefix(), ACTION_ENDPOINT, out);
+				this.generatePythonElement(action, imp.getPrefix(), "action", out);
 			}
 			for (ApiElement other : imp.getApiOthers()) {
-				this.generatePythonElement(other, imp.getPrefix(), OTHER_ENDPOINT, out);
+				this.generatePythonElement(other, imp.getPrefix(), "other", out);
 			}
 			out.write("\n");
 		}
@@ -270,14 +260,9 @@ public class PythonAPIGenerator extends AbstractAPIGenerator {
 
 	public static void main(String[] args) throws Exception {
 		// Command for generating a python version of the ZAP API
-
-		if (!Files.exists(Paths.get(DEFAULT_OUTPUT_DIR))) {
-			System.err.println("The directory does not exist: " + Paths.get(DEFAULT_OUTPUT_DIR).toAbsolutePath());
-			System.exit(1);
-		}
 		
 		PythonAPIGenerator wapi = new PythonAPIGenerator();
-		wapi.generateCoreAPIFiles();
+		wapi.generatePythonFiles(ApiGeneratorUtils.getAllImplementors());
 		
 		//System.out.println(camelCaseToLcUnderscores("TestCase"));
 		

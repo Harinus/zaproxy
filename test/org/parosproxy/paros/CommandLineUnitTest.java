@@ -50,9 +50,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.zaproxy.zap.utils.I18N;
 
-/**
- * Unit test for {@link CommandLine}.
- */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(Constant.class)
 public class CommandLineUnitTest {
@@ -185,22 +182,6 @@ public class CommandLineUnitTest {
         cmdLine = new CommandLine(new String[] { CommandLine.HOST, hostname });
         // Then
         assertThat(cmdLine.getHost(), is(equalTo(hostname)));
-    }
-
-    @Test
-    public void shouldHaveNoStdOutArgumentDisabledByDefault() throws Exception {
-        // Given / When
-        cmdLine = new CommandLine(new String[] {});
-        // Then
-        assertThat(cmdLine.isNoStdOutLog(), is(equalTo(false)));
-    }
-
-    @Test
-    public void shouldParseNoStdOutArgument() throws Exception {
-        // Given / When
-        cmdLine = new CommandLine(new String[] { CommandLine.NOSTDOUT });
-        // Then
-        assertThat(cmdLine.isNoStdOutLog(), is(equalTo(true)));
     }
 
     @Test

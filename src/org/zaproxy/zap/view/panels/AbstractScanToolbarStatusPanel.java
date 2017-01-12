@@ -31,7 +31,7 @@ import org.zaproxy.zap.view.ZapToggleButton;
  * An extended implementation of a {@link AbstractContextSelectToolbarStatusPanel} that should be
  * used for status panels for scans. Contains a toolbar with the following elements: context
  * selection, scan control buttons (start, stop, pause) and a progress bar.
- * <p>
+ * <p/>
  * This panel should be used in a scan based on a <b>{@link BaseScannerThread}</b>. It also requires
  * a corresponding {@link BaseScannerThreadManager} that is used for obtaining the scanner threads
  * for given contexts. Certain control actions (stop, pause, resume) are being forwarded directly to
@@ -230,12 +230,8 @@ public abstract class AbstractScanToolbarStatusPanel extends AbstractContextSele
 
 	/**
 	 * Method used for setting the state of the scan buttons and of the progress bar.
-	 * <p>
-	 * <strong>NOTE:</strong> Must be called from the main thread (EDT).
 	 * 
-	 * @param isStarted {@code true} if the scan is started, {@code false} otherwise.
-	 * @param isPaused {@code true} if the scan is paused, {@code false} otherwise.
-	 * @param allowStartScan {@code true} if should possible to start a scan, {@code false} otherwise.
+	 * NOTE: Must be called from the main thread.
 	 */
 	private void setScanButtonsAndProgressBarStates(boolean isStarted, boolean isPaused,
 			boolean allowStartScan) {
@@ -281,7 +277,6 @@ public abstract class AbstractScanToolbarStatusPanel extends AbstractContextSele
 	 * Method called when the pause button is pressed. Base implementation forward the calls to the
 	 * Scanner Thread that corresponds to the provided Context and obtained via the Thread Manager
 	 * specified in the constructor.
-	 * @param context the context whose scan should be paused
 	 */
 	protected void pauseScan(Context context) {
 		log.debug("Access Control pause on Context: " + context);
@@ -292,7 +287,6 @@ public abstract class AbstractScanToolbarStatusPanel extends AbstractContextSele
 	 * Method called when the resume button is pressed. Base implementation forward the calls to the
 	 * Scanner Thread that corresponds to the provided Context and obtained via the Thread Manager
 	 * specified in the constructor.
-	 * @param context the context whose scan should be resumed
 	 */
 	protected void resumeScan(Context context) {
 		log.debug("Access Control resume on Context: " + context);
@@ -303,7 +297,6 @@ public abstract class AbstractScanToolbarStatusPanel extends AbstractContextSele
 	 * Method called when the stop button is pressed. Base implementation forward the calls to the
 	 * Scanner Thread that corresponds to the provided Context and obtained via the Thread Manager
 	 * specified in the constructor.
-	 * @param context the context whose scan should be stopped
 	 */
 	protected void stopScan(Context context) {
 		log.debug("Access Control stop on Context: " + context);
@@ -314,8 +307,6 @@ public abstract class AbstractScanToolbarStatusPanel extends AbstractContextSele
 	 * Method called to check whether the scan for a given Context has started. Base implementation
 	 * forward the calls to the Scanner Thread that corresponds to the provided Context and obtained
 	 * via the Thread Manager specified in the constructor.
-	 * @param context the context whose scan should be checked
-	 * @return {@code true} if the scan is paused, {@code false} otherwise.
 	 */
 	protected boolean isScanStarted(Context context) {
 		return threadManager.getScannerThread(context.getIndex()).isRunning();
@@ -325,8 +316,6 @@ public abstract class AbstractScanToolbarStatusPanel extends AbstractContextSele
 	 * Method called to check whether the scan for a given Context is paused. Base implementation
 	 * forward the calls to the Scanner Thread that corresponds to the provided Context and obtained
 	 * via the Thread Manager specified in the constructor.
-	 * @param context the context whose scan should be checked
-	 * @return {@code true} if the scan is paused, {@code false} otherwise.
 	 */
 	protected boolean isScanPaused(Context context) {
 		return threadManager.getScannerThread(context.getIndex()).isPaused();
@@ -336,8 +325,6 @@ public abstract class AbstractScanToolbarStatusPanel extends AbstractContextSele
 	 * Method called to check the scan progress for a given Context. Base implementation forward the
 	 * calls to the Scanner Thread that corresponds to the provided Context and obtained via the
 	 * Thread Manager specified in the constructor.
-	 * @param context the context whose scan should be checked
-	 * @return the progress
 	 */
 	protected int getScanProgress(Context context) {
 		return threadManager.getScannerThread(context.getIndex()).getScanProgress();
@@ -347,8 +334,6 @@ public abstract class AbstractScanToolbarStatusPanel extends AbstractContextSele
 	 * Method called to check the scan maximum progress for a given Context. Base implementation
 	 * forward the calls to the Scanner Thread that corresponds to the provided Context and obtained
 	 * via the Thread Manager specified in the constructor.
-	 * @param context the context whose scan should be checked
-	 * @return the maximum value of the progress
 	 */
 	protected int getScanMaximumProgress(Context context) {
 		return threadManager.getScannerThread(context.getIndex()).getScanMaximumProgress();
@@ -415,7 +400,7 @@ public abstract class AbstractScanToolbarStatusPanel extends AbstractContextSele
 
 	/**
 	 * Method called when the user has pressed the 'start scan' button.
-	 * <p>
+	 * <p/>
 	 * Normally, implementing classes could create a dialog for specifying scan options or directly
 	 * build the proper {@link ScanStartOptions} and start the {@link BaseScannerThread}.
 	 * 

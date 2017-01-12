@@ -45,8 +45,26 @@ public class ExtensionEncoder2 extends ExtensionAdaptor implements OptionsChange
 	private EncodeDecodeParamPanel optionsPanel;
 	private EncodeDecodeParam params;
 
+    /**
+     * 
+     */
     public ExtensionEncoder2() {
-        super("ExtensionEncode2");
+        super();
+ 		initialize();
+    }
+
+    /**
+     * @param name
+     */
+    public ExtensionEncoder2(String name) {
+        super(name);
+    }
+
+	/**
+	 * This method initializes this
+	 */
+	private void initialize() {
+        this.setName("ExtensionEncode2");
         this.setOrder(22);
 	}
 	

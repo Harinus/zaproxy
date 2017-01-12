@@ -25,9 +25,7 @@ import org.zaproxy.zap.model.Context;
 /**
  * An implementation of a {@link BaseScannerThread} for scans done on {@link Context Contexts},
  * adding support for notifying a list of {@link ScanListener scan listeners}.
- * 
- * @param <StartOptions> the type of the start scan options
- * @param <Listener> the type of scan listener
+ *
  * @see BaseScannerThread
  * @see ScanListener
  * @see Context
@@ -51,7 +49,6 @@ public abstract class BaseContextScannerThread<StartOptions extends ScanStartOpt
 
 	/**
 	 * Adds a new scan listener.
-	 * @param l the listener to add
 	 */
 	public void addScanListener(Listener l) {
 		listeners.add(l);
@@ -59,7 +56,6 @@ public abstract class BaseContextScannerThread<StartOptions extends ScanStartOpt
 
 	/**
 	 * Removes a scan listener.
-	 * @param l the listener to remove
 	 */
 	public void removeScanListener(Listener l) {
 		listeners.remove(l);

@@ -17,8 +17,6 @@
  */
 package org.zaproxy.zap.model;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,7 +36,6 @@ import org.apache.commons.httpclient.URIException;
 import org.apache.log4j.Logger;
 import org.parosproxy.paros.network.HtmlParameter;
 import org.parosproxy.paros.network.HttpMessage;
-import org.parosproxy.paros.network.HtmlParameter.Type;
 
 public class StandardParameterParser implements ParameterParser {
 	
@@ -103,65 +100,21 @@ public class StandardParameterParser implements ParameterParser {
 		
 	@Override
 	public Map<String, String> getParams(HttpMessage msg, HtmlParameter.Type type) {
+		Map<String, String> map = new HashMap<String, String>();
 	    if (msg == null) {
-	    	return new HashMap<>();
+	    	return map;
 	    }
-		switch (type) {
-		case form:	return this.parse(msg.getRequestBody().toString());
-		case url:
-			return convertParametersList(parseParameters(msg.getRequestHeader().getURI().getEscapedQuery()));
-		default:
-					throw new InvalidParameterException("Type not supported: " + type);
-		}
-	}
-
-	/**
-	 * Converts the given {@code List} of parameters to a {@code Map}.
-	 * <p>
-	 * The names of parameters are used as keys (mapping to corresponding value) thus removing any duplicated parameters. It is
-	 * used an empty {@code String} for the mapping, if the parameter has no value ({@code null}).
-	 *
-	 * @param parameters the {@code List} to be converted, must not be {@code null}
-	 * @return a {@code Map} containing the parameters
-	 */
-	private static Map<String, String> convertParametersList(List<NameValuePair> parameters) {
-		Map<String, String> map = new HashMap<>();
-		for (NameValuePair parameter : parameters) {
-			String value = parameter.getValue();
-			if (value == null) {
-				value = "";
+	    try {
+			switch (type) {
+			case form:	return this.parse(msg.getRequestBody().toString());
+			case url:	return this.parse(msg.getRequestHeader().getURI().getQuery());
+			default:
+						throw new InvalidParameterException("Type not supported: " + type);
 			}
-			map.put(parameter.getName(), value);
+		} catch (URIException e) {
+			log.error(e.getMessage(), e);
 		}
 		return map;
-	}
-
-	/**
-	 * @throws IllegalArgumentException if any of the parameters is {@code null} or if the given {@code type} is not
-	 *             {@link org.parosproxy.paros.network.HtmlParameter.Type#url url} or
-	 *             {@link org.parosproxy.paros.network.HtmlParameter.Type#form form}.
-	 */
-	@Override
-	public List<NameValuePair> getParameters(HttpMessage msg, Type type) {
-		if (msg == null) {
-			throw new IllegalArgumentException("Parameter msg must not be null.");
-		}
-		if (type == null) {
-			throw new IllegalArgumentException("Parameter type must not be null.");
-		}
-
-		switch (type) {
-		case form:
-			return parseParameters(msg.getRequestBody().toString());
-		case url:
-			String query = msg.getRequestHeader().getURI().getEscapedQuery();
-			if (query == null) {
-				return new ArrayList<>(0);
-			}
-			return parseParameters(query);
-		default:
-			throw new IllegalArgumentException("The provided type is not supported: " + type);
-		}
 	}
 
 	private void setKeyValueSeparatorPattern(Pattern keyValueSeparatorPattern) {
@@ -239,34 +192,6 @@ public class StandardParameterParser implements ParameterParser {
 		}
 		return map;
 	}
-
-	@Override
-	public List<NameValuePair> parseParameters(String parameters) {
-		if (parameters == null) {
-			return new ArrayList<>(0);
-		}
-
-		List<NameValuePair> parametersList = new ArrayList<>();
-		String[] pairs = getKeyValuePairSeparatorPattern().split(parameters);
-		for (int i = 0; i < pairs.length; i++) {
-			String[] nameValuePair = getKeyValueSeparatorPattern().split(pairs[i], 2);
-			if (nameValuePair.length == 1) {
-				parametersList.add(new DefaultNameValuePair(urlDecode(nameValuePair[0])));
-			} else {
-				parametersList.add(new DefaultNameValuePair(urlDecode(nameValuePair[0]), urlDecode(nameValuePair[1])));
-			}
-		}
-		return parametersList;
-	}
-
-	private static String urlDecode(String value) {
-		try {
-			return URLDecoder.decode(value, "UTF-8");
-		} catch (UnsupportedEncodingException ignore) {
-			// Shouldn't happen UTF-8 is a standard charset (see java.nio.charset.StandardCharsets)
-		}
-		return "";
-	}
 	
 	@Override
 	public StandardParameterParser clone() {
@@ -325,7 +250,7 @@ public class StandardParameterParser implements ParameterParser {
 		}
 		if (incStructParams) {
 			// Add any structural params (url param) in key order
-			Map<String, String> urlParams = convertParametersList(parseParameters(uri.getEscapedQuery()));
+			Map<String, String> urlParams = this.parse(uri.getQuery());
 			List<String> keys = new ArrayList<String>(urlParams.keySet());
 			Collections.sort(keys);
 			for (String key: keys) {
@@ -386,7 +311,7 @@ public class StandardParameterParser implements ParameterParser {
 
 		// Add the 'structural params' path elements
 		boolean firstElement = true;
-		Map<String, String> urlParams = convertParametersList(parseParameters(uri.getEscapedQuery()));
+		Map<String, String> urlParams = this.parse(uri.getQuery());
 		for (Entry<String, String> param : urlParams.entrySet()) {
 			if (this.structuralParameters.contains(param.getKey())) {
 				if (firstElement) {

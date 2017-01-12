@@ -19,14 +19,12 @@
  */
 package org.zaproxy.zap.view.popup;
 
-import java.util.List;
-
 import org.parosproxy.paros.Constant;
 import org.parosproxy.paros.db.DatabaseException;
-import org.parosproxy.paros.model.HistoryReference;
 import org.parosproxy.paros.model.Model;
 import org.parosproxy.paros.model.Session;
 import org.parosproxy.paros.model.SiteNode;
+import org.parosproxy.paros.view.SessionDialog;
 import org.parosproxy.paros.view.View;
 import org.zaproxy.zap.model.Context;
 import org.zaproxy.zap.model.StructuralSiteNode;
@@ -77,42 +75,30 @@ public class PopupMenuItemIncludeInContext extends PopupMenuItemSiteNodeContaine
     }
 
     protected void performAction(String name, String url) {
-        if (context == null) {
-            Session session = Model.getSingleton().getSession();
-            context = session.getNewContext(name);
-            recreateUISharedContexts(session);
-        }
-
-        Context uiSharedContext = View.getSingleton().getSessionDialog().getUISharedContext(context.getIndex());
-        uiSharedContext.addIncludeInContextRegex(url);
-    }
-
-    @Override
-    public void performHistoryReferenceActions(List<HistoryReference> hrefs) {
         Session session = Model.getSingleton().getSession();
 
-        if (context != null) {
-            recreateUISharedContexts(session);
+        if (context == null) {
+            context = session.getNewContext(name);
         }
 
-        super.performHistoryReferenceActions(hrefs);
+        // Manually create the UI shared contexts so any modifications are done
+        // on an UI shared Context, so changes can be undone by pressing Cancel
+        SessionDialog sessionDialog = View.getSingleton().getSessionDialog();
+        sessionDialog.recreateUISharedContexts(session);
+        Context uiSharedContext = sessionDialog.getUISharedContext(context.getIndex());
+
+        uiSharedContext.addIncludeInContextRegex(url);
 
         // Show the session dialog without recreating UI Shared contexts
         View.getSingleton().showSessionDialog(session, ContextIncludePanel.getPanelName(context.getIndex()),
                 false);
     }
 
-    private void recreateUISharedContexts(Session session) {
-        // Manually create the UI shared contexts so any modifications are done
-        // on an UI shared Context, so changes can be undone by pressing Cancel
-        View.getSingleton().getSessionDialog().recreateUISharedContexts(session);
-    }
-
     @Override
     public boolean isButtonEnabledForSiteNode(SiteNode sn) {
         if (context == null) {
-            // New context, if it doesn't already exist one with same name.
-            return Model.getSingleton().getSession().getContext(sn.getNodeName()) == null;
+            // New context
+            return true;
         }
         if (context.isIncluded(sn) || context.isExcluded(sn)) {
             // Either explicitly included or excluded, so would have to change that regex in a non

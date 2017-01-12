@@ -35,37 +35,37 @@ public interface EventBus {
 	
 	/**
 	 * Unregister the publisher
-	 * @param publisher the publisher
+	 * @param publisher
 	 */
 	void unregisterPublisher(EventPublisher publisher);
 	
 	/**
 	 * Register the consumer for the specified publisher - this consumer will receive all events from the publisher 
-	 * @param consumer the consumer of events
-	 * @param publisherName the name of the publisher
+	 * @param consumer
+	 * @param publisherName
 	 */
 	void registerConsumer (EventConsumer consumer, String publisherName);
 	
 	/**
 	 * Register the consumer for the specified publisher - this consumer will only receive the 
 	 * specified events from the publisher 
-	 * @param consumer the consumer of events
-	 * @param publisherName the name of the publisher
-	 * @param eventTypes the event types
+	 * @param consumer
+	 * @param publisherName
+	 * @param eventTypes
 	 */
 	void registerConsumer (EventConsumer consumer, String publisherName, String[] eventTypes);
 	
 	/**
 	 * Unregister the consumer
-	 * @param consumer the consumer of events
-	 * @param publisherName the name of the publisher
+	 * @param consumer
+	 * @param publisherName
 	 */
 	void unregisterConsumer(EventConsumer consumer, String publisherName);
 	
 	/**
 	 * Publish the specified event synchronously
-	 * @param publisher the publisher
-	 * @param event the event
+	 * @param publisher
+	 * @param event
 	 */
 	void publishSyncEvent(EventPublisher publisher, Event event);
 }

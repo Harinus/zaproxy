@@ -29,10 +29,7 @@ import org.parosproxy.paros.control.Control.Mode;
 import org.parosproxy.paros.view.View;
 import org.zaproxy.zap.extension.httppanel.Message;
 
-/**
- * @deprecated (TODO add version) Use {@link BreakpointMessageHandler2} instead
- */
-@Deprecated
+
 public class BreakpointMessageHandler {
 
     private static final Logger logger = Logger.getLogger(BreakpointMessageHandler.class);
@@ -83,7 +80,7 @@ public class BreakpointMessageHandler {
                 waitUntilContinue(true);
             }
         }
-        breakPanel.clearAndDisableRequest();
+        clearAndDisableRequest();
         return ! breakPanel.isToBeDropped();
     }
     
@@ -110,13 +107,13 @@ public class BreakpointMessageHandler {
                 waitUntilContinue(false);
             }
         }
-        breakPanel.clearAndDisableResponse();
+        clearAndDisableResponse();
 
         return ! breakPanel.isToBeDropped();
     }
     
     private void setBreakDisplay(final Message msg, boolean isRequest) {
-        breakPanel.setMessage(msg, isRequest);
+        setHttpDisplay(breakPanel, msg, isRequest);
         breakPanel.breakpointDisplayed();
         try {
             EventQueue.invokeAndWait(new Runnable() {
@@ -130,6 +127,20 @@ public class BreakpointMessageHandler {
         }
     }
     
+    private void setHttpDisplay(final BreakPanel breakPanel, final Message msg, final boolean isRequest) {
+        try {
+            EventQueue.invokeAndWait(new Runnable() {
+                @Override
+                public void run() {
+                    breakPanel.setMessage(msg, isRequest);
+                }
+            });
+        } catch (Exception e) {
+            logger.warn(e.getMessage(), e);
+        }
+        
+    }
+    
     private void waitUntilContinue(final boolean isRequest) {
         // Note that multiple requests and responses can get built up, so pressing continue only
         // releases the current break, not all of them.
@@ -141,7 +152,16 @@ public class BreakpointMessageHandler {
                 logger.warn(e.getMessage(), e);
             }
         }
-        breakPanel.saveMessage(isRequest);
+        try {
+            EventQueue.invokeAndWait(new Runnable() {
+                @Override
+                public void run() {
+                    breakPanel.saveMessage(isRequest);
+                }
+            });
+        } catch (Exception ie) {
+            logger.warn(ie.getMessage(), ie);
+        }
     }
 
     /**
@@ -228,4 +248,40 @@ public class BreakpointMessageHandler {
 
         return false;
 	}
+    
+	private void clearAndDisableRequest() {
+        if (EventQueue.isDispatchThread()) {
+            breakPanel.clearAndDisableRequest();
+        } else {
+            try {
+                EventQueue.invokeAndWait(new Runnable() {
+                    @Override
+                    public void run() {
+                        breakPanel.clearAndDisableRequest();
+                    }
+                });
+            } catch (Exception e) {
+                logger.warn(e.getMessage(), e);
+            }
+        }
+    }
+    
+    private void clearAndDisableResponse() {
+        if (EventQueue.isDispatchThread()) {
+            breakPanel.clearAndDisableResponse();
+        } else {
+            try {
+                EventQueue.invokeAndWait(new Runnable() {
+                    @Override
+                    public void run() {
+                        breakPanel.clearAndDisableResponse();
+                    }
+                });
+            } catch (Exception e) {
+                logger.warn(e.getMessage(), e);
+            }
+        }
+    }
+    
+    
 }

@@ -17,18 +17,22 @@
  */
 package org.zaproxy.zap.extension.api;
 
-import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.ResourceBundle;
 
-public class PhpAPIGenerator extends AbstractAPIGenerator {
+import org.parosproxy.paros.Constant;
+
+public class PhpAPIGenerator {
+	private File dir;
+	private boolean optional = false;
 
 	private final String HEADER =
 			"<?php\n" +
@@ -37,7 +41,7 @@ public class PhpAPIGenerator extends AbstractAPIGenerator {
 			" *\n" +
 			" * ZAP is an HTTP/HTTPS proxy for assessing web application security.\n" +
 			" *\n" +
-			" * Copyright 2016 the ZAP development team\n" +
+			" * Copyright the ZAP development team\n" +
 			" *\n" +
 			" * Licensed under the Apache License, Version 2.0 (the \"License\");\n" +
 			" * you may not use this file except in compliance with the License.\n" +
@@ -53,6 +57,11 @@ public class PhpAPIGenerator extends AbstractAPIGenerator {
 			" */\n" +
 			"\n\n";
 
+	private final String OPTIONAL_MASSAGE = "This component is optional and therefore the API will only work if it is installed"; 
+
+	private ResourceBundle msgs = ResourceBundle.getBundle("lang." + Constant.MESSAGES_PREFIX, Locale.ENGLISH,
+		ResourceBundle.Control.getControl(ResourceBundle.Control.FORMAT_PROPERTIES));
+
 	/**
 	 * Map any names which are reserved in java to something legal
 	 */
@@ -61,29 +70,23 @@ public class PhpAPIGenerator extends AbstractAPIGenerator {
         Map<String, String> initMap = new HashMap<>();
         initMap.put("Break", "Brk");
         initMap.put("break", "brk");
-        initMap.put("continue", "cont");
         nameMap = Collections.unmodifiableMap(initMap);
     }
 
     public PhpAPIGenerator() {
-    	super("php/api/zapv2/src/Zap");
+    	dir = new File("php/api/zapv2/src/Zap"); 
     }
 
     public PhpAPIGenerator(String path, boolean optional) {
-    	super(path, optional);
+    	dir = new File(path); 
+    	this.optional = optional;
     }
 
-    /**
-     * Generates the API client files of the given API implementors.
-     *
-     * @param implementors the implementors
-     * @throws IOException if an error occurred while generating the APIs.
-     * @deprecated (TODO add version) Use {@link #generateAPIFiles(List)} instead.
-     */
-    @Deprecated
-    public void generatePhpFiles(List<ApiImplementor> implementors) throws IOException {
-        this.generateAPIFiles(implementors);
-    }
+	public void generatePhpFiles(List<ApiImplementor> implementors) throws IOException {
+		for (ApiImplementor imp : implementors) {
+			this.generatePhpComponent(imp);
+		}
+	}
 
 	private void generatePhpElement(ApiElement element, String component, 
 			String type, Writer out) throws IOException {
@@ -101,19 +104,19 @@ public class PhpAPIGenerator extends AbstractAPIGenerator {
 		}
 
 		try {
-			String desc = getMessages().getString(descTag);
+			String desc = msgs.getString(descTag);
 			out.write("\t/**\n");
 			out.write("\t * " + desc + "\n");
-			if (isOptional()) {
-				out.write("\t * " + OPTIONAL_MESSAGE + "\n");
+			if (optional) {
+				out.write("\t * " + OPTIONAL_MASSAGE + "\n");
 			}
 			out.write("\t */\n");
 		} catch (Exception e) {
 			// Might not be set, so just print out the ones that are missing
 			System.out.println("No i18n for: " + descTag);
-			if (isOptional()) {
+			if (optional) {
 				out.write("\t/**\n");
-				out.write("\t * " + OPTIONAL_MESSAGE + "\n");
+				out.write("\t * " + OPTIONAL_MASSAGE + "\n");
 				out.write("\t */\n");
 			}
 		}
@@ -123,7 +126,7 @@ public class PhpAPIGenerator extends AbstractAPIGenerator {
 		String paramMan = "";
 		if (element.getMandatoryParamNames() != null) {
 			for (String param : element.getMandatoryParamNames()) {
-			    if (!paramMan.isEmpty()) {
+			    if (paramMan != "") {
 			        paramMan += ", ";
 			    }
 				paramMan += "$" + param.toLowerCase();
@@ -133,15 +136,15 @@ public class PhpAPIGenerator extends AbstractAPIGenerator {
 		String paramOpt = "";
 		if (element.getOptionalParamNames() != null) {
 			for (String param : element.getOptionalParamNames()) {
-			    if (!paramMan.isEmpty() || !paramOpt.isEmpty()) {
+			    if (paramMan != "" || paramOpt != "") {
 			        paramOpt += ", ";
 			    }
-				paramOpt += "$" + param.toLowerCase() + "=NULL";
+				paramOpt += "$" + param.toLowerCase() + "=''";
 			}
 			out.write(paramOpt);
 		}
 
-		if (type.equals(ACTION_ENDPOINT) || type.equals(OTHER_ENDPOINT)) {
+		if (type.equals("action") || type.equals("other")) {
 		    if (hasParams) {
 		        out.write(", ");
 		    }
@@ -152,63 +155,55 @@ public class PhpAPIGenerator extends AbstractAPIGenerator {
 
 		out.write(") {\n");
 
-		StringBuilder reqParams = new StringBuilder();
-		if (hasParams) {
-			reqParams.append("array(");
-			boolean first = true;
-			if (element.getMandatoryParamNames() != null) {
-				for (String param : element.getMandatoryParamNames()) {
-					if (first) {
-						first = false;
-					} else {
-						reqParams.append(", ");
-					}
-					reqParams.append("'" + param + "' => $" + param.toLowerCase());
-				}
-			}
-			if (type.equals(ACTION_ENDPOINT) || type.equals(OTHER_ENDPOINT)) {
-				// Always add the API key - we've no way of knowing if it will be required or not
-				if (!first) {
-					reqParams.append(", ");
-				}
-				reqParams.append("'").append(API.API_KEY_PARAM).append("' => $").append(API.API_KEY_PARAM);
-			}
-			reqParams.append(")");
-
-			if (element.getOptionalParamNames() != null && !element.getOptionalParamNames().isEmpty()) {
-				out.write("\t\t$params = ");
-				out.write(reqParams.toString());
-				out.write(";\n");
-				reqParams.replace(0, reqParams.length(), "$params");
-
-				for (String param : element.getOptionalParamNames()) {
-					out.write("\t\tif ($" + param.toLowerCase() + " !== NULL) {\n");
-					out.write("\t\t\t$params['" + param + "'] = $" + param.toLowerCase() + ";\n");
-					out.write("\t\t}\n");
-				}
-			}
-		}
-
 		String method = "request";
 		String baseUrl = "base";
-		if (type.equals(OTHER_ENDPOINT)) {
+		if (type.equals("other")) {
 			method += "other";
-			baseUrl += "_other";
+			baseUrl += "other";
 		}
 
 		out.write("\t\treturn $this->zap->" + method + "($this->zap->" + baseUrl + " . '" +
 				component + "/" + type + "/" + element.getName() + "/'");
 
 		if (hasParams) {
-			out.write(", ");
-			out.write(reqParams.toString());
-			out.write(")");
-			if (type.equals(VIEW_ENDPOINT)) {
+			out.write(", array(");
+			boolean first = true;
+			if (element.getMandatoryParamNames() != null) {
+				for (String param : element.getMandatoryParamNames()) {
+					if (first) {
+						first = false;
+					} else {
+						out.write(", ");
+					}
+					out.write("'" + param + "' => $" + param.toLowerCase());
+				}
+			}
+			if (element.getOptionalParamNames() != null) {
+				for (String param : element.getOptionalParamNames()) {
+					if (first) {
+						first = false;
+					} else {
+						out.write(", ");
+					}
+					out.write("'" + param + "' => $" + param.toLowerCase());
+				}
+			}
+			if (type.equals("action") || type.equals("other")) {
+					// Always add the API key - we've no way of knowing if it will be required or not
+					if (first) {
+						first = false;
+					} else {
+						out.write(", ");
+					}
+					out.write("'" + API.API_KEY_PARAM + "' => $" + API.API_KEY_PARAM);
+			}
+			out.write("))");
+			if (type.equals("view")) {
 				out.write("->{'" + element.getName() + "'};\n");
 			} else {
 			    out.write(";\n");
 			}
-		} else if (!type.equals(OTHER_ENDPOINT)) {
+		} else if (!type.equals("other")) {
 			if (element.getName().startsWith("option")) {
 				out.write(")->{'" + element.getName().substring(6) + "'};\n");
 			} else {
@@ -232,37 +227,36 @@ public class PhpAPIGenerator extends AbstractAPIGenerator {
 		return string.replaceAll("\\.", "");
 	}
 
-	@Override
-	protected void generateAPIFiles(ApiImplementor imp) throws IOException {
+	private void generatePhpComponent(ApiImplementor imp) throws IOException {
 		String className = safeName(imp.getPrefix().substring(0, 1).toUpperCase() + imp.getPrefix().substring(1));
 
-		Path file = getDirectory().resolve(className + ".php");
-		System.out.println("Generating " + file.toAbsolutePath());
-		try (BufferedWriter out = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-			out.write(HEADER);
-			out.write("namespace Zap;\n\n");
+		File f = new File(this.dir, className + ".php");
+		System.out.println("Generating " + f.getAbsolutePath());
+		FileWriter out = new FileWriter(f);
+		out.write(HEADER);
+		out.write("namespace Zap;\n\n");
 
-			out.write("\n");
-			out.write("/**\n");
-			out.write(" * This file was automatically generated.\n");
-			out.write(" */\n");
-			out.write("class " + className + " {\n\n");
+		out.write("\n");
+		out.write("/**\n");
+		out.write(" * This file was automatically generated.\n");
+		out.write(" */\n");
+		out.write("class " + className + " {\n\n");
 
-			out.write("\tpublic function __construct ($zap) {\n");
-			out.write("\t\t$this->zap = $zap;\n");
-			out.write("\t}\n\n");
+		out.write("\tpublic function __construct ($zap) {\n");
+		out.write("\t\t$this->zap = $zap;\n");
+		out.write("\t}\n\n");
 
-			for (ApiElement view : imp.getApiViews()) {
-				this.generatePhpElement(view, imp.getPrefix(), VIEW_ENDPOINT, out);
-			}
-			for (ApiElement action : imp.getApiActions()) {
-				this.generatePhpElement(action, imp.getPrefix(), ACTION_ENDPOINT, out);
-			}
-			for (ApiElement other : imp.getApiOthers()) {
-				this.generatePhpElement(other, imp.getPrefix(), OTHER_ENDPOINT, out);
-			}
-			out.write("}\n");
+		for (ApiElement view : imp.getApiViews()) {
+			this.generatePhpElement(view, imp.getPrefix(), "view", out);
 		}
+		for (ApiElement action : imp.getApiActions()) {
+			this.generatePhpElement(action, imp.getPrefix(), "action", out);
+		}
+		for (ApiElement other : imp.getApiOthers()) {
+			this.generatePhpElement(other, imp.getPrefix(), "other", out);
+		}
+		out.write("}\n");
+		out.close();
 	}
 
 	private static String safeName (String name) {
@@ -274,7 +268,7 @@ public class PhpAPIGenerator extends AbstractAPIGenerator {
 
 	public static void main(String[] args) throws Exception {
 		PhpAPIGenerator wapi = new PhpAPIGenerator();
-		wapi.generateCoreAPIFiles();
+		wapi.generatePhpFiles(ApiGeneratorUtils.getAllImplementors());
 	}
 
 }

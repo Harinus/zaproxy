@@ -36,6 +36,9 @@ public class OptionsAntiCsrfTableModel extends AbstractMultipleOptionsTableModel
 	
     private List<AntiCsrfParamToken> tokens = new ArrayList<>(0);
     
+    /**
+     * 
+     */
     public OptionsAntiCsrfTableModel() {
         super();
     }

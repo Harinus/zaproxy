@@ -181,8 +181,9 @@ public class ZapToggleButton extends JToggleButton {
 
     /**
      * Updates the current tool tip text based on the toggle button's state.
+     * <p>
+     * The tool tip that will be set based on button's state is:
      * <table>
-     * <caption>The tool tip that will be set based on button's state</caption>
      * <tr>
      * <td>State</td>
      * <td>Tool tip text set</td>
@@ -204,6 +205,7 @@ public class ZapToggleButton extends JToggleButton {
      * <td>{@code defaultToolTipText}</td>
      * </tr>
      * </table>
+     * </p>
      * 
      * @see #defaultToolTipText
      * @see #selectedToolTipText

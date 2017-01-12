@@ -66,6 +66,9 @@ public class OutputPanel extends AbstractPanel {
 	private JScrollPane jScrollPane = null;
 	private ZapTextArea txtOutput = null;
 
+	/**
+     * 
+     */
     public OutputPanel() {
         super();
  		initialize();
@@ -211,21 +214,4 @@ public class OutputPanel extends AbstractPanel {
 			getTxtOutput().append(message);
 	}
 	
-	/**
-	 * Appends the given {@code message} to the panel, asynchronously in the EDT.
-	 *
-	 * @param message the message to append to the output panel
-	 * @since 2.5.0
-	 * @see EventQueue#invokeLater(Runnable)
-	 */
-	public void appendAsync(final String message) {
-		EventQueue.invokeLater(new Runnable() {
-
-			@Override
-			public void run() {
-				doAppend(message);
-			}
-		});
-	}
-
   }  //  @jve:decl-index=0:visual-constraint="10,10"

@@ -20,89 +20,59 @@
 
 package org.parosproxy.paros.core.scanner;
 
+import java.net.HttpCookie;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Vector;
-
-import org.parosproxy.paros.network.HttpHeader;
+import java.util.Set;
+import org.parosproxy.paros.network.HtmlParameter;
 import org.parosproxy.paros.network.HttpMessage;
 
 /**
- * A {@code Variant} for Cookie headers, allowing to attack the names and values of the cookies.
- * 
+ *
  * @author andy
- * @see Variant
  */
 public class VariantCookie implements Variant {
 
-    private List<NameValuePair> params = Collections.emptyList();
+    private final List<NameValuePair> params = new ArrayList<>();
 
     /**
-     * @throws IllegalArgumentException if {@code message} is {@code null}.
+     * 
+     * @param msg 
      */
     @Override
-    public void setMessage(HttpMessage message) {
-        if (message == null) {
-            throw new IllegalArgumentException("Parameter message must not be null.");
-        }
-
-        Vector<String> cookieLines = message.getRequestHeader().getHeaders(HttpHeader.COOKIE);
-        if (cookieLines == null) {
-            params = Collections.emptyList();
-            return;
-        }
-
-        ArrayList<NameValuePair> extractedParameters = new ArrayList<>();
-        for (String cookieLine : cookieLines) {
-            if (cookieLine.trim().isEmpty()) {
-                continue;
-            }
-
-            String[] cookieArray = cookieLine.split("; ?");
-            for (String cookie : cookieArray) {
-                String[] nameValuePair = cookie.split("=", 2);
-                String name = nameValuePair[0];
-                String value = null;
-                if (nameValuePair.length == 2) {
-                    value = getUnescapedValue(nameValuePair[1]);
-                }
-                extractedParameters.add(new NameValuePair(NameValuePair.TYPE_COOKIE, name, value, extractedParameters.size()));
-            }
-        }
-
-        if (extractedParameters.isEmpty()) {
-            params = Collections.emptyList();
-        } else {
-            extractedParameters.trimToSize();
-            params = Collections.unmodifiableList(extractedParameters);
+    public void setMessage(HttpMessage msg) {
+        Set<HtmlParameter> cp = msg.getRequestHeader().getCookieParams();
+        int idx = 0;
+        
+        for (HtmlParameter param : cp) {
+            // ZAP: the parameter could be encoded so decode it
+            params.add(new NameValuePair(NameValuePair.TYPE_COOKIE, param.getName(), getUnescapedValue(param.getValue()), idx++));
         }
     }
 
     /**
-     * Encodes the given {@code value}.
-     * 
-     * @param value the value that needs to be encoded, must not be {@code null}.
-     * @return the encoded value
+     * Encode the parameter
+     * @param value the value that need to be encoded
+     * @return the Encoded value
      */
-    private static String getEscapedValue(String value) {
-        return AbstractPlugin.getURLEncode(value);
+    private String getEscapedValue(String value) {
+        return (value != null) ? 
+                AbstractPlugin.getURLEncode(value) : "";
     }
     
     /**
-     * Decodes the given {@code value}.
-     * 
-     * @param value the value that needs to be decoded, must not be {@code null}.
-     * @return the decoded value
+     * Decode the parameter
+     * @param value
+     * @return 
      */
     private String getUnescapedValue(String value) {
-        return AbstractPlugin.getURLDecode(value);
+        //return value;
+        return (value != null) ? AbstractPlugin.getURLDecode(value) : "";
     }
     
     /**
-     * Gets the list of parameters (that is, cookies) extracted from the request header of the message.
      * 
-     * @return an unmodifiable {@code List} containing the extracted parameters, never {@code null}.
+     * @return 
      */
     @Override
     public List<NameValuePair> getParamList() {
@@ -145,54 +115,21 @@ public class VariantCookie implements Variant {
      * @return 
      */
     private String setParameter(HttpMessage msg, NameValuePair originalPair, String name, String value, boolean escaped) {        
-        String escapedValue = value == null ? null : escaped ? value : getEscapedValue(value);
-        StringBuilder cookieString = new StringBuilder();
+        List<HttpCookie> cookies = new ArrayList<>();
+        String encodedValue = (escaped) ? value : getEscapedValue(value);
+        NameValuePair param;
+        
         for (int idx = 0; idx < params.size(); idx++) {
-            String cookieName = null;
-            String cookieValue = null;
+            param = params.get(idx);
             if (idx == originalPair.getPosition()) {
-                if (!(name == null && escapedValue == null)) {
-                    cookieName = name;
-                    if (escapedValue != null) {
-                        cookieValue = escapedValue;
-                    }
-                }
+                cookies.add(new HttpCookie(name, encodedValue));
+                
             } else {
-                NameValuePair param = params.get(idx);
-                cookieName = param.getName();
-                cookieValue = param.getValue();
-                if (cookieValue != null) {
-                    cookieValue = getEscapedValue(cookieValue);
-                }
-            }
-
-            if (cookieString.length() != 0 && !(cookieName == null && cookieValue == null)) {
-                cookieString.append("; ");
-            }
-
-            if (cookieName != null) {
-                cookieString.append(cookieName);
-            }
-
-            if (cookieValue != null) {
-                cookieString.append('=');
-                cookieString.append(cookieValue);
+                cookies.add(new HttpCookie(param.getName(), getEscapedValue(param.getValue())));
             }
         }
-
-        msg.getRequestHeader().setHeader(HttpHeader.COOKIE, null);
-        if (cookieString.length() != 0) {
-            msg.getRequestHeader().setHeader(HttpHeader.COOKIE, cookieString.toString());
-        }
-
-        if (escapedValue == null) {
-            return name;
-        }
-
-        if (name == null) {
-            return "=" + escapedValue;
-        }
-
-        return name + "=" + escapedValue;
+        
+        msg.getRequestHeader().setCookies(cookies);
+        return name + "=" + encodedValue;
     }    
 }

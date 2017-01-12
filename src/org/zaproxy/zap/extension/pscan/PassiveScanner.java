@@ -41,6 +41,4 @@ public interface PassiveScanner {
 	AlertThreshold getLevel();
 	
 	void setLevel (AlertThreshold level);
-	
-	boolean appliesToHistoryType (int historyType);
 }

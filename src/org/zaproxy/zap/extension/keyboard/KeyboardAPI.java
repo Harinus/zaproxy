@@ -68,6 +68,7 @@ public class KeyboardAPI extends ApiImplementor {
 				true);
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public HttpMessage handleApiOther(HttpMessage msg, String name, JSONObject params) throws ApiException {
 		if (OTHER_CHEETSHEET_ACTION_ORDER.equals(name) ||
@@ -76,16 +77,17 @@ public class KeyboardAPI extends ApiImplementor {
 			List<KeyboardShortcut> shortcuts = this.extension.getShortcuts();
 			
 			if (OTHER_CHEETSHEET_ACTION_ORDER.equals(name)) {
-				Collections.sort(shortcuts, new Comparator<KeyboardShortcut>() {
+				Collections.sort(shortcuts, new Comparator() {
 					@Override
-					public int compare(KeyboardShortcut o1, KeyboardShortcut o2) {
-						return o1.getName().compareTo(o2.getName());
+					public int compare(Object o1, Object o2) {
+						return ((KeyboardShortcut)o1).getName().compareTo(((KeyboardShortcut)o2).getName());
 					}});
 			} else {
-				Collections.sort(shortcuts, new Comparator<KeyboardShortcut>() {
+				Collections.sort(shortcuts, new Comparator() {
 					@Override
-					public int compare(KeyboardShortcut o1, KeyboardShortcut o2) {
-						return o1.getKeyStrokeKeyCodeString().compareTo(o2.getKeyStrokeKeyCodeString());
+					public int compare(Object o1, Object o2) {
+						return ((KeyboardShortcut)o1).getKeyStrokeKeyCodeString().compareTo(
+								((KeyboardShortcut)o2).getKeyStrokeKeyCodeString());
 					}});
 			}
 			
@@ -106,7 +108,12 @@ public class KeyboardAPI extends ApiImplementor {
 			response.append(Constant.messages.getString("keyboard.api.cheatsheet.footer"));
 			
 	    	try {
-	            msg.setResponseHeader(API.getDefaultResponseHeader("text/html", response.length()));
+				msg.setResponseHeader(
+						"HTTP/1.1 200 OK\r\n" +
+						"Pragma: no-cache\r\n" +
+						"Cache-Control: no-cache\r\n" + 
+						"Content-Length: " + response.length() + 
+						"\r\nContent-Type: text/html;");
 			} catch (HttpMalformedHeaderException e) {
 				throw new ApiException(ApiException.Type.INTERNAL_ERROR, name, e);
 			}

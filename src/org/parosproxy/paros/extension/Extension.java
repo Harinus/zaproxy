@@ -31,7 +31,6 @@
 // ZAP: 2015/02/10 Issue 1208: Search classes/resources in add-ons declared as dependencies
 // ZAP: 2015/03/16 Issue 1525: Further database independence changes
 // ZAP: 2015/03/30 Issue 1582: Enablers for low memory option
-// ZAP: 2016/09/26 JavaDoc tweaks
 
 package org.parosproxy.paros.extension;
 
@@ -104,7 +103,7 @@ public interface Extension {
     /**
      * Initialization of plugin after obtaining data model from core.  Method should not depend
      * on view.
-     * @param model the model
+     * @param model
      */
     void initModel(Model model);
 
@@ -132,8 +131,8 @@ public interface Extension {
     
     /**
      * Initialize session and options parameter if required XML node not in either files.
-     * @param session the current session
-     * @param options the options
+     * @param session
+     * @param options
      */
     void initXML(Session session, OptionsParam options);
     
@@ -221,9 +220,9 @@ public interface Extension {
 
     /**
      * Implement this method to register database tables to be used by the add-on 
-     * @param db the database opened
-     * @throws DatabaseException if an error occurred while reading the database contents
-     * @throws DatabaseUnsupportedException if the database is not supported by the extension
+     * @param dbServer
+     * @throws DatabaseException
+     * @throws DatabaseUnsupportedException
      */
     void databaseOpen(Database db) throws DatabaseException, DatabaseUnsupportedException;
 
@@ -259,7 +258,7 @@ public interface Extension {
      * If the low memory option is set (and the extension supports it) then code should minimize the data stored in memory, 
      * using the db for all significant data.
      * Extensions that do not support the low memory option will not be run if the option is set.
-     * @return {@code true} if the extension support the 'low memory' option, {@code false} otherwise
+     * @return
      */
     boolean supportsLowMemory();
 }

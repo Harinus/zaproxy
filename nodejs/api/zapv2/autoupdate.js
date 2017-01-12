@@ -2,7 +2,7 @@
  *
  * ZAP is an HTTP/HTTPS proxy for assessing web application security.
  *
- * Copyright 2016 the ZAP development team
+ * Copyright the ZAP development team
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,73 +28,77 @@ function Autoupdate(clientApi) {
 }
 
 /**
- * Returns the latest version number
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Autoupdate.prototype.latestVersionNumber = function (callback) {
   this.api.request('/autoupdate/view/latestVersionNumber/', callback);
 };
 
 /**
- * Returns 'true' if ZAP is on the latest version
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Autoupdate.prototype.isLatestVersion = function (callback) {
   this.api.request('/autoupdate/view/isLatestVersion/', callback);
 };
 
-Autoupdate.prototype.optionAddonDirectories = function (callback) {
-  this.api.request('/autoupdate/view/optionAddonDirectories/', callback);
-};
-
-Autoupdate.prototype.optionDayLastChecked = function (callback) {
-  this.api.request('/autoupdate/view/optionDayLastChecked/', callback);
-};
-
-Autoupdate.prototype.optionDayLastInstallWarned = function (callback) {
-  this.api.request('/autoupdate/view/optionDayLastInstallWarned/', callback);
-};
-
-Autoupdate.prototype.optionDayLastUpdateWarned = function (callback) {
-  this.api.request('/autoupdate/view/optionDayLastUpdateWarned/', callback);
-};
-
-Autoupdate.prototype.optionDownloadDirectory = function (callback) {
-  this.api.request('/autoupdate/view/optionDownloadDirectory/', callback);
-};
-
-Autoupdate.prototype.optionCheckAddonUpdates = function (callback) {
-  this.api.request('/autoupdate/view/optionCheckAddonUpdates/', callback);
-};
-
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Autoupdate.prototype.optionCheckOnStart = function (callback) {
   this.api.request('/autoupdate/view/optionCheckOnStart/', callback);
 };
 
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Autoupdate.prototype.optionDownloadNewRelease = function (callback) {
   this.api.request('/autoupdate/view/optionDownloadNewRelease/', callback);
 };
 
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
+Autoupdate.prototype.optionCheckAddonUpdates = function (callback) {
+  this.api.request('/autoupdate/view/optionCheckAddonUpdates/', callback);
+};
+
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Autoupdate.prototype.optionInstallAddonUpdates = function (callback) {
   this.api.request('/autoupdate/view/optionInstallAddonUpdates/', callback);
 };
 
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Autoupdate.prototype.optionInstallScannerRules = function (callback) {
   this.api.request('/autoupdate/view/optionInstallScannerRules/', callback);
 };
 
-Autoupdate.prototype.optionReportAlphaAddons = function (callback) {
-  this.api.request('/autoupdate/view/optionReportAlphaAddons/', callback);
-};
-
-Autoupdate.prototype.optionReportBetaAddons = function (callback) {
-  this.api.request('/autoupdate/view/optionReportBetaAddons/', callback);
-};
-
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Autoupdate.prototype.optionReportReleaseAddons = function (callback) {
   this.api.request('/autoupdate/view/optionReportReleaseAddons/', callback);
 };
 
 /**
- * Downloads the latest release, if any 
+ * This component is optional and therefore the API will only work if it is installed
+ **/
+Autoupdate.prototype.optionReportBetaAddons = function (callback) {
+  this.api.request('/autoupdate/view/optionReportBetaAddons/', callback);
+};
+
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
+Autoupdate.prototype.optionReportAlphaAddons = function (callback) {
+  this.api.request('/autoupdate/view/optionReportAlphaAddons/', callback);
+};
+
+/**
+ * This component is optional and therefore the API will only work if it is installed
  **/
 Autoupdate.prototype.downloadLatestRelease = function (apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
@@ -104,14 +108,9 @@ Autoupdate.prototype.downloadLatestRelease = function (apikey, callback) {
   this.api.request('/autoupdate/action/downloadLatestRelease/', {'apikey' : apikey}, callback);
 };
 
-Autoupdate.prototype.setOptionCheckAddonUpdates = function (bool, apikey, callback) {
-  if (!callback && typeof(apikey) === 'function') {
-    callback = apikey;
-    apikey = null;
-  }
-  this.api.request('/autoupdate/action/setOptionCheckAddonUpdates/', {'Boolean' : bool, 'apikey' : apikey}, callback);
-};
-
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Autoupdate.prototype.setOptionCheckOnStart = function (bool, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
     callback = apikey;
@@ -120,6 +119,9 @@ Autoupdate.prototype.setOptionCheckOnStart = function (bool, apikey, callback) {
   this.api.request('/autoupdate/action/setOptionCheckOnStart/', {'Boolean' : bool, 'apikey' : apikey}, callback);
 };
 
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Autoupdate.prototype.setOptionDownloadNewRelease = function (bool, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
     callback = apikey;
@@ -128,6 +130,20 @@ Autoupdate.prototype.setOptionDownloadNewRelease = function (bool, apikey, callb
   this.api.request('/autoupdate/action/setOptionDownloadNewRelease/', {'Boolean' : bool, 'apikey' : apikey}, callback);
 };
 
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
+Autoupdate.prototype.setOptionCheckAddonUpdates = function (bool, apikey, callback) {
+  if (!callback && typeof(apikey) === 'function') {
+    callback = apikey;
+    apikey = null;
+  }
+  this.api.request('/autoupdate/action/setOptionCheckAddonUpdates/', {'Boolean' : bool, 'apikey' : apikey}, callback);
+};
+
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Autoupdate.prototype.setOptionInstallAddonUpdates = function (bool, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
     callback = apikey;
@@ -136,6 +152,9 @@ Autoupdate.prototype.setOptionInstallAddonUpdates = function (bool, apikey, call
   this.api.request('/autoupdate/action/setOptionInstallAddonUpdates/', {'Boolean' : bool, 'apikey' : apikey}, callback);
 };
 
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Autoupdate.prototype.setOptionInstallScannerRules = function (bool, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
     callback = apikey;
@@ -144,14 +163,20 @@ Autoupdate.prototype.setOptionInstallScannerRules = function (bool, apikey, call
   this.api.request('/autoupdate/action/setOptionInstallScannerRules/', {'Boolean' : bool, 'apikey' : apikey}, callback);
 };
 
-Autoupdate.prototype.setOptionReportAlphaAddons = function (bool, apikey, callback) {
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
+Autoupdate.prototype.setOptionReportReleaseAddons = function (bool, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
     callback = apikey;
     apikey = null;
   }
-  this.api.request('/autoupdate/action/setOptionReportAlphaAddons/', {'Boolean' : bool, 'apikey' : apikey}, callback);
+  this.api.request('/autoupdate/action/setOptionReportReleaseAddons/', {'Boolean' : bool, 'apikey' : apikey}, callback);
 };
 
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Autoupdate.prototype.setOptionReportBetaAddons = function (bool, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
     callback = apikey;
@@ -160,12 +185,15 @@ Autoupdate.prototype.setOptionReportBetaAddons = function (bool, apikey, callbac
   this.api.request('/autoupdate/action/setOptionReportBetaAddons/', {'Boolean' : bool, 'apikey' : apikey}, callback);
 };
 
-Autoupdate.prototype.setOptionReportReleaseAddons = function (bool, apikey, callback) {
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
+Autoupdate.prototype.setOptionReportAlphaAddons = function (bool, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
     callback = apikey;
     apikey = null;
   }
-  this.api.request('/autoupdate/action/setOptionReportReleaseAddons/', {'Boolean' : bool, 'apikey' : apikey}, callback);
+  this.api.request('/autoupdate/action/setOptionReportAlphaAddons/', {'Boolean' : bool, 'apikey' : apikey}, callback);
 };
 
 module.exports = Autoupdate;

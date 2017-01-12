@@ -32,7 +32,6 @@ import java.util.List;
 public interface CommandLineListener {
     /**
      * execute the command line using the argument provided.
-     * @param args the command line arguments
      */
     void execute(CommandLineArgument[] args);
     
@@ -40,14 +39,14 @@ public interface CommandLineListener {
      * Handle the specified file (in whatever way is appropriate).
      * This will only be called for files specified on the command line without switches 
      * and which match one of the extensions returned by getHandledExtensions() 
-     * @param file the file provided through the command line
+     * @param file
      * @return true if the listener handled the file, false otherwise
      */
     boolean handleFile (File file);
     
     /**
      * Get the list of extensions this listener can handle
-     * @return a {@code List} with the handled extensions
+     * @return
      */
     List<String> getHandledExtensions();
 

@@ -28,7 +28,6 @@
 // ZAP: 2013/11/16 Issue 869: Differentiate proxied requests from (ZAP) user requests
 // ZAP: 2015/04/02 Issue 1582: Low memory option
 // ZAP: 2015/09/07 Issue 1872: EDT accessed in daemon mode
-// ZAP: 2016/05/30 Issue 2494: ZAP Proxy is not showing the HTTP CONNECT Request in history tab
 
 package org.parosproxy.paros.extension.history;
  
@@ -36,7 +35,6 @@ import java.awt.EventQueue;
 
 import org.apache.log4j.Logger;
 import org.parosproxy.paros.Constant;
-import org.parosproxy.paros.core.proxy.ConnectRequestProxyListener;
 import org.parosproxy.paros.core.proxy.ProxyListener;
 import org.parosproxy.paros.extension.ViewDelegate;
 import org.parosproxy.paros.model.HistoryReference;
@@ -48,7 +46,7 @@ import org.parosproxy.paros.view.View;
 import org.zaproxy.zap.model.SessionStructure;
 
 
-public class ProxyListenerLog implements ProxyListener, ConnectRequestProxyListener {
+public class ProxyListenerLog implements ProxyListener {
 
 	// ZAP: Added logger
     private static final Logger log = Logger.getLogger(ProxyListenerLog.class);
@@ -118,7 +116,7 @@ public class ProxyListenerLog implements ProxyListener, ConnectRequestProxyListe
 		Thread t = new Thread(new Runnable() {
 		    @Override
 		    public void run() {
-		        createAndAddMessage(msg, finalType);
+		        addHistory(msg, finalType);
 		    }
 		});
 		t.start();
@@ -135,25 +133,25 @@ public class ProxyListenerLog implements ProxyListener, ConnectRequestProxyListe
 				
 	}
     
-    private void createAndAddMessage(HttpMessage msg, int type) {
-        HistoryReference historyRef = createHistoryReference(msg, type);
-        if (historyRef == null || (type != HistoryReference.TYPE_PROXIED && type != HistoryReference.TYPE_HIDDEN)) {
+    private void addHistory(HttpMessage msg, int type) {
+        
+        HistoryReference historyRef = null;
+
+        try {
+            historyRef = new HistoryReference(model.getSession(), type, msg);
+        } catch (Exception e) {
+        	// ZAP: Log exceptions
+        	log.warn(e.getMessage(), e);
             return;
         }
 
+        if (type != HistoryReference.TYPE_PROXIED && type != HistoryReference.TYPE_HIDDEN) {
+            return;
+        }
+        
         extension.addHistory(historyRef);
 
         addToSiteMap(historyRef, msg);
-    }
-
-    private HistoryReference createHistoryReference(HttpMessage message, int type) {
-        try {
-            return new HistoryReference(model.getSession(), type, message);
-        } catch (Exception e) {
-            // ZAP: Log exceptions
-            log.warn(e.getMessage(), e);
-        }
-        return null;
     }
 
     private void addToSiteMap(final HistoryReference ref, final HttpMessage msg) {
@@ -179,23 +177,5 @@ public class ProxyListenerLog implements ProxyListener, ConnectRequestProxyListe
                 view.getSiteTreePanel().expandRoot();
             }
         }
-    }
-
-    @Override
-    public void receivedConnectRequest(final HttpMessage connectMessage) {
-        if (!model.getOptionsParam().getViewParam().isShowLocalConnectRequests()) {
-            return;
-        }
-
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                HistoryReference historyRef = createHistoryReference(connectMessage, HistoryReference.TYPE_PROXY_CONNECT);
-                if (historyRef != null) {
-                    extension.addHistory(historyRef);
-                }
-            }
-        });
-        t.start();
     }
 }

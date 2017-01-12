@@ -40,6 +40,7 @@ import org.zaproxy.zap.extension.help.ExtensionHelp;
 public class PersistSessionDialog extends AbstractDialog implements ActionListener {
 
 	private static final long serialVersionUID = 1L;
+	//private static final Logger logger = Logger.getLogger(PersistSessionDialog.class);
 	
 	private JPanel jPanel = null;
 	private JButton startSessionButton = null;
@@ -49,13 +50,12 @@ public class PersistSessionDialog extends AbstractDialog implements ActionListen
 	private JCheckBox dontAskAgainCheckbox = null;
 
     /**
-     * Constructs a modal {@code PersistSessionDialog} with the given owner.
-     * 
-     * @param owner the {@code Frame} from which the dialog is displayed
-     * @throws HeadlessException when {@code GraphicsEnvironment.isHeadless()} returns {@code true}
+     * @param arg0
+     * @param arg1
+     * @throws HeadlessException
      */
-    public PersistSessionDialog(Frame owner) {
-        super(owner, true);
+    public PersistSessionDialog(Frame arg0) throws HeadlessException {
+        super(arg0, true);
         this.setModalityType(ModalityType.DOCUMENT_MODAL);
  		initialize();
     }

@@ -21,21 +21,18 @@ package org.zaproxy.zap.authentication;
 
 import java.util.regex.Pattern;
 
-import org.apache.commons.httpclient.URIException;
 import org.parosproxy.paros.Constant;
 import org.parosproxy.paros.network.HttpMessage;
 import org.parosproxy.paros.view.View;
 import org.zaproxy.zap.extension.api.ApiResponse;
 import org.zaproxy.zap.model.Context;
-import org.zaproxy.zap.model.SessionStructure;
 import org.zaproxy.zap.session.SessionManagementMethod;
 import org.zaproxy.zap.session.WebSession;
 import org.zaproxy.zap.users.User;
-import org.zaproxy.zap.utils.Stats;
 
 /**
- * The {@code AuthenticationMethod} represents an authentication method that can be used to authenticate an
- * entity in a particular web application.
+ * The AuthenticationMethod represents an authentication method that can be used to authenticate an
+ * entity in a particular WebApplication.
  */
 public abstract class AuthenticationMethod {
 
@@ -43,11 +40,6 @@ public abstract class AuthenticationMethod {
 	public static final String CONTEXT_CONFIG_AUTH_TYPE = CONTEXT_CONFIG_AUTH + ".type";
 	public static final String CONTEXT_CONFIG_AUTH_LOGGEDIN = CONTEXT_CONFIG_AUTH + ".loggedin";
 	public static final String CONTEXT_CONFIG_AUTH_LOGGEDOUT = CONTEXT_CONFIG_AUTH + ".loggedout";
-
-	public static final String AUTH_STATE_LOGGED_IN_STATS = "stats.auth.state.loggedin";
-	public static final String AUTH_STATE_LOGGED_OUT_STATS = "stats.auth.state.loggedout";
-	public static final String AUTH_STATE_NO_INDICATOR_STATS = "stats.auth.state.noindicator";
-	public static final String AUTH_STATE_UNKNOWN_STATS = "stats.auth.state.unknown";
 
 	/**
 	 * Checks if the authentication method is fully configured.
@@ -86,7 +78,7 @@ public abstract class AuthenticationMethod {
 	 * 
 	 * @return {@code true} if the creation of authentication credentials is possible, {@code false} otherwise
 	 * @see #createAuthenticationCredentials()
-	 * @since 2.4.3
+	 * @since TODO add version
 	 */
 	public boolean validateCreationOfAuthenticationCredentials() {
 		return true;
@@ -118,7 +110,6 @@ public abstract class AuthenticationMethod {
 	 * @param sessionManagementMethod the set up session management method is provided so it can be
 	 *            used, if needed, to automatically extract session information from Http Messages.
 	 * @param credentials the credentials
-	 * @param user the user to authenticate
 	 * @return an authenticated web session
 	 * @throws UnsupportedAuthenticationCredentialsException the unsupported authentication
 	 *             credentials exception {@link WebSession}.
@@ -174,11 +165,6 @@ public abstract class AuthenticationMethod {
 		}
 		// Assume logged in if nothing was set up
 		if (loggedInIndicatorPattern == null && loggedOutIndicatorPattern == null) {
-			try {
-				Stats.incCounter(SessionStructure.getHostName(msg), AUTH_STATE_NO_INDICATOR_STATS);
-			} catch (URIException e) {
-				// Ignore
-			}
 			if (View.isInitialised()) {
 				// Let the user know this
 				View.getSingleton()
@@ -197,29 +183,13 @@ public abstract class AuthenticationMethod {
 				&& (loggedInIndicatorPattern.matcher(body).find() || loggedInIndicatorPattern.matcher(header)
 						.find())) {
 			// Looks like we're authenticated
-			try {
-				Stats.incCounter(SessionStructure.getHostName(msg), AUTH_STATE_LOGGED_IN_STATS);
-			} catch (URIException e) {
-				// Ignore
-			}
 			return true;
 		}
 
 		if (loggedOutIndicatorPattern != null && !loggedOutIndicatorPattern.matcher(body).find()
 				&& !loggedOutIndicatorPattern.matcher(header).find()) {
-			// Cant find the unauthenticated indicator, assume we're authenticated but record as unknown
-			try {
-				Stats.incCounter(SessionStructure.getHostName(msg), AUTH_STATE_UNKNOWN_STATS);
-			} catch (URIException e) {
-				// Ignore
-			}
+			// Cant find the unauthenticated indicator, assume we're authenticated
 			return true;
-		}
-		// Not looking good...
-		try {
-			Stats.incCounter(SessionStructure.getHostName(msg), AUTH_STATE_LOGGED_OUT_STATS);
-		} catch (URIException e) {
-			// Ignore
 		}
 		return false;
 	}

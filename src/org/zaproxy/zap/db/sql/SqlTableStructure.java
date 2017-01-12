@@ -76,6 +76,7 @@ public class SqlTableStructure extends SqlAbstractTable implements TableStructur
 				RecordStructure result = null;
 				if (rs.next()) {
 					result = build(rs);
+					rs.close();
 				}
 				return result;
 			}

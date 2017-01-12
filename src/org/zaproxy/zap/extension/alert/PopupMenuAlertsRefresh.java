@@ -20,44 +20,63 @@
 package org.zaproxy.zap.extension.alert;
 
 import java.awt.Component;
-import java.util.Set;
 
 import javax.swing.tree.DefaultTreeModel;
 
 import org.parosproxy.paros.Constant;
-import org.parosproxy.paros.core.scanner.Alert;
+import org.parosproxy.paros.extension.ExtensionPopupMenuItem;
 
 
 /**
- * A {@link PopupMenuItemAlert} that allows to refresh the Alerts tree (the UI tree is rebuilt from the model already set).
- * 
- * @since 1.4.0
+ * ZAP: New Popup Menu Alert Delete
  */
-public class PopupMenuAlertsRefresh extends PopupMenuItemAlert {
+public class PopupMenuAlertsRefresh extends ExtensionPopupMenuItem {
 
 	private static final long serialVersionUID = 1L;
 
+	private ExtensionAlert extension = null;
+
+    /**
+     * 
+     */
     public PopupMenuAlertsRefresh() {
-        super(Constant.messages.getString("alerts.refresh.popup"), true);
+        super();
+ 		initialize();
+    }
+
+    /**
+     * @param label
+     */
+    public PopupMenuAlertsRefresh(String label) {
+        super(label);
+    }
+
+	/**
+	 * This method initializes this
+	 */
+	private void initialize() {
+        this.setText(Constant.messages.getString("alerts.refresh.popup"));
+
+        this.addActionListener(new java.awt.event.ActionListener() { 
+
+        	@Override
+        	public void actionPerformed(java.awt.event.ActionEvent e) {
+			    ((DefaultTreeModel)extension.getAlertPanel().getTreeAlert().getModel()).reload();
+        	}
+        });
+			
 	}
 	
     @Override
-    protected void performActions(Set<Alert> alerts) {
-        ((DefaultTreeModel) getExtensionAlert().getAlertPanel().getTreeAlert().getModel()).reload();
-    }
-
-    @Override
     public boolean isEnableForComponent(Component invoker) {
-        if (super.isEnableForComponent(invoker)) {
-            setEnabled(true);
-            return true;
+        if (invoker.getName() != null && invoker.getName().equals("treeAlert")) {
+        	return true;
         }
         return false;
     }
     
-    @Override
-    protected void performAction(Alert alert) {
-        // Nothing to do.
+    void setExtension(ExtensionAlert extension) {
+        this.extension = extension;
     }
 
     @Override

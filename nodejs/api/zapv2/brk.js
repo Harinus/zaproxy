@@ -2,7 +2,7 @@
  *
  * ZAP is an HTTP/HTTPS proxy for assessing web application security.
  *
- * Copyright 2016 the ZAP development team
+ * Copyright the ZAP development team
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,9 @@ function Break(clientApi) {
   this.api = clientApi;
 }
 
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Break.prototype.brk = function (type, scope, state, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
     callback = apikey;
@@ -35,6 +38,9 @@ Break.prototype.brk = function (type, scope, state, apikey, callback) {
   this.api.request('/break/action/break/', {'type' : type, 'scope' : scope, 'state' : state, 'apikey' : apikey}, callback);
 };
 
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Break.prototype.addHttpBreakpoint = function (string, location, match, inverse, ignorecase, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
     callback = apikey;
@@ -43,6 +49,9 @@ Break.prototype.addHttpBreakpoint = function (string, location, match, inverse, 
   this.api.request('/break/action/addHttpBreakpoint/', {'string' : string, 'location' : location, 'match' : match, 'inverse' : inverse, 'ignorecase' : ignorecase, 'apikey' : apikey}, callback);
 };
 
+/**
+ * This component is optional and therefore the API will only work if it is installed
+ **/
 Break.prototype.removeHttpBreakpoint = function (string, location, match, inverse, ignorecase, apikey, callback) {
   if (!callback && typeof(apikey) === 'function') {
     callback = apikey;

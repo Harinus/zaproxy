@@ -20,13 +20,14 @@
 
 package org.zaproxy.zap.db.sql;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Vector;
 
-import org.parosproxy.paros.db.AbstractDatabase;
+import org.apache.log4j.Logger;
+import org.parosproxy.paros.db.Database;
 import org.parosproxy.paros.db.DatabaseException;
 import org.parosproxy.paros.db.DatabaseListener;
 import org.parosproxy.paros.db.DatabaseServer;
+import org.parosproxy.paros.db.DatabaseUnsupportedException;
 import org.parosproxy.paros.db.TableAlert;
 import org.parosproxy.paros.db.TableContext;
 import org.parosproxy.paros.db.TableHistory;
@@ -39,7 +40,7 @@ import org.parosproxy.paros.db.TableTag;
 
 
 
-public class SqlDatabase extends AbstractDatabase {
+public class SqlDatabase implements Database {
 	
 	private SqlDatabaseServer databaseServer = null;
 	private TableHistory tableHistory = null;
@@ -51,13 +52,8 @@ public class SqlDatabase extends AbstractDatabase {
 	private TableParam tableParam = null;
 	private TableContext tableContext = null;
 	private TableStructure tableStructure = null;
-	/**
-	 * {@code DatabaseListener}s added internally when the {@code SqlDatabase} is constructed.
-	 * <p>
-	 * These listeners are kept during the lifetime of the database, while dynamically added listeners are removed once the
-	 * database is closed.
-	 */
-	private final List<DatabaseListener> internalDatabaseListeners = new ArrayList<>();
+    private static final Logger log = Logger.getLogger(SqlDatabase.class);
+	private Vector<DatabaseListener> listenerList = new Vector<>();
 
 	public SqlDatabase() {
 		
@@ -71,16 +67,16 @@ public class SqlDatabase extends AbstractDatabase {
 	    tableTag = new SqlTableTag();
 	    tableStructure = new SqlTableStructure();
 
-	    internalDatabaseListeners.add(DbSQL.getSingleton());
-	    internalDatabaseListeners.add(tableHistory);
-	    internalDatabaseListeners.add(tableSession);
-	    internalDatabaseListeners.add(tableAlert);
-	    internalDatabaseListeners.add(tableScan);
-	    internalDatabaseListeners.add(tableTag);
-	    internalDatabaseListeners.add(tableSessionUrl);
-	    internalDatabaseListeners.add(tableParam);
-	    internalDatabaseListeners.add(tableContext);
-	    internalDatabaseListeners.add(tableStructure);
+	    addDatabaseListener(DbSQL.getSingleton());
+	    addDatabaseListener(tableHistory);
+	    addDatabaseListener(tableSession);
+	    addDatabaseListener(tableAlert);
+	    addDatabaseListener(tableScan);
+	    addDatabaseListener(tableTag);
+	    addDatabaseListener(tableSessionUrl);
+	    addDatabaseListener(tableParam);
+	    addDatabaseListener(tableContext);
+	    addDatabaseListener(tableStructure);
 
 	}
 	
@@ -115,40 +111,67 @@ public class SqlDatabase extends AbstractDatabase {
 	public TableSession getTableSession() {
         return tableSession;
     }
+    
+	/* (non-Javadoc)
+	 * @see org.parosproxy.paros.db.DatabaseIF#addDatabaseListener(org.parosproxy.paros.db.DatabaseListener)
+	 */
+	@Override
+	public void addDatabaseListener(DatabaseListener listener) {
+		listenerList.add(listener);
+		
+	}
 	
+	// ZAP: Changed parameter's type from SpiderListener to DatabaseListener.
+	/* (non-Javadoc)
+	 * @see org.parosproxy.paros.db.DatabaseIF#removeDatabaseListener(org.parosproxy.paros.db.DatabaseListener)
+	 */
+	@Override
+	public void removeDatabaseListener(DatabaseListener listener) {
+		listenerList.remove(listener);
+	}
+	
+	protected void notifyListenerDatabaseOpen() throws DatabaseException {
+	    DatabaseListener listener = null;
+	    
+	    for (int i=0;i<listenerList.size();i++) {
+	        // ZAP: Removed unnecessary cast.
+	        listener = listenerList.get(i);
+	        try {
+				listener.databaseOpen(getDatabaseServer());
+			} catch (DatabaseUnsupportedException e) {
+				log.error(e.getMessage(), e);
+			}
+	    }
+	}
+
 	/* (non-Javadoc)
 	 * @see org.parosproxy.paros.db.DatabaseIF#open(java.lang.String)
 	 */
 	@Override
-	public final void open(String path) throws Exception {
+	public void open(String path) throws ClassNotFoundException, Exception {
 	    // ZAP: Added log statement.
-		logger.debug("open " + path);
-	    setDatabaseServer(createDatabaseServer(path));
-	    notifyListenersDatabaseOpen(internalDatabaseListeners, getDatabaseServer());
-	    notifyListenersDatabaseOpen(getDatabaseServer());
+		log.debug("open " + path);
+	    setDatabaseServer(new SqlDatabaseServer(path));
+	    notifyListenerDatabaseOpen();
 	}
 	
-	/**
-	 * Creates the {@code SqlDatabaseServer} to be used when opening a database.
-	 * <p>
-	 * Extending classes can use this method to create a custom {@code SqlDatabaseServer} implementation.
-	 *
-	 * @param path the location of the database server
-	 * @return a {@code SqlDatabaseServer} to be used by this database
-	 * @throws Exception if an error occurred while creating the {@code SqlDatabaseServer}.
-	 * @since 2.5.0
-	 * @see #open(String)
+    /* (non-Javadoc)
+	 * @see org.parosproxy.paros.db.DatabaseIF#close(boolean)
 	 */
-	protected SqlDatabaseServer createDatabaseServer(String path) throws Exception {
-		return new SqlDatabaseServer(path);
-	}
+    // ZAP: Added JavaDoc.
+    @Override
+	public void close(boolean compact) {
+        // ZAP: Moved the content of this method to the method close(boolean,
+        // boolean) and changed to call that method instead.
+        close(compact, true);
+    }
 
     /* (non-Javadoc)
 	 * @see org.parosproxy.paros.db.DatabaseIF#deleteSession(java.lang.String)
 	 */
     @Override
 	public void deleteSession(String sessionName) {
-		logger.debug("deleteSession " + sessionName);
+		log.debug("deleteSession " + sessionName);
 	    if (databaseServer == null) {
 	    	return;
 	    }
@@ -161,12 +184,10 @@ public class SqlDatabase extends AbstractDatabase {
 	@Override
 	public void close(boolean compact, boolean cleanup) {
 		// ZAP: Added statement.
-		logger.debug("close");
+		log.debug("close");
 	    if (databaseServer == null) {
 	    	return;
 	    }
-
-	    super.close(compact, cleanup);
 	    
 	    try {
 	        // ZAP: Added if block.
@@ -176,7 +197,7 @@ public class SqlDatabase extends AbstractDatabase {
 	        }
         } catch (Exception e) {
 	        // ZAP: Changed to log the exception.
-            logger.error(e.getMessage(), e);
+            log.error(e.getMessage(), e);
         }
 	}
 	
@@ -274,10 +295,4 @@ public class SqlDatabase extends AbstractDatabase {
 		return DbSQL.getDbType();
 	}
 
-	@Override
-	public void discardSession(long sessionId) throws DatabaseException {
-		if (!isFileBased()) {
-			getTableHistory().deleteHistorySession(sessionId);
-		}
-	}
 }

@@ -126,9 +126,4 @@ public class ScriptVars {
 		
 		return scVars.get(key);
 	}
-
-	static void clear() {
-		globalVars.clear();
-		scriptVars.clear();
-	}
 }

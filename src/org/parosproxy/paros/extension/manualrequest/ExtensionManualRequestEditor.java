@@ -38,7 +38,6 @@
 // ZAP: 2014/08/14 Issue 1292: NullPointerException while attempting to remove an unregistered ManualRequestEditorDialog
 // ZAP: 2014/12/12 Issue 1449: Added help button
 // ZAP: 2015/03/16 Issue 1525: Further database independence changes
-// ZAP: 2016/06/20 Removed unnecessary/unused constructor
 
 package org.parosproxy.paros.extension.manualrequest;
 
@@ -70,7 +69,17 @@ public class ExtensionManualRequestEditor extends ExtensionAdaptor implements Se
 
 	
 	public ExtensionManualRequestEditor() {
-		super(NAME);
+		super();
+		initialize();
+	}
+
+	
+	public ExtensionManualRequestEditor(String name) {
+		super(name);
+	}
+	
+	private void initialize() {
+		this.setName(NAME);
         this.setOrder(36);
         
 	}

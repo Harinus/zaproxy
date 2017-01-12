@@ -20,21 +20,17 @@
 package org.zaproxy.zap.extension.alert;
 
 import java.awt.EventQueue;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.Vector;
+
+import javax.swing.tree.TreeNode;
 
 import org.apache.log4j.Logger;
 import org.parosproxy.paros.Constant;
@@ -47,13 +43,10 @@ import org.parosproxy.paros.db.RecordScan;
 import org.parosproxy.paros.db.TableAlert;
 import org.parosproxy.paros.extension.ExtensionAdaptor;
 import org.parosproxy.paros.extension.ExtensionHook;
-import org.parosproxy.paros.extension.OptionsChangedListener;
 import org.parosproxy.paros.extension.SessionChangedListener;
 import org.parosproxy.paros.extension.ViewDelegate;
 import org.parosproxy.paros.extension.history.ExtensionHistory;
 import org.parosproxy.paros.model.HistoryReference;
-import org.parosproxy.paros.model.Model;
-import org.parosproxy.paros.model.OptionsParam;
 import org.parosproxy.paros.model.Session;
 import org.parosproxy.paros.model.SiteMap;
 import org.parosproxy.paros.model.SiteNode;
@@ -65,11 +58,9 @@ import org.zaproxy.zap.ZAP;
 import org.zaproxy.zap.eventBus.Event;
 import org.zaproxy.zap.extension.XmlReporterExtension;
 import org.zaproxy.zap.extension.help.ExtensionHelp;
-import org.zaproxy.zap.model.SessionStructure;
 import org.zaproxy.zap.model.Target;
 
-public class ExtensionAlert extends ExtensionAdaptor implements 
-		SessionChangedListener, XmlReporterExtension, OptionsChangedListener {
+public class ExtensionAlert extends ExtensionAdaptor implements SessionChangedListener, XmlReporterExtension {
 
     public static final String NAME = "ExtensionAlert";
     private Map<Integer, HistoryReference> hrefs = new HashMap<>();
@@ -84,10 +75,27 @@ public class ExtensionAlert extends ExtensionAdaptor implements
     private Logger logger = Logger.getLogger(ExtensionAlert.class);
 	private AlertParam alertParam = null;
 	private OptionsAlertPanel optionsPanel = null;
-	private Properties alertOverrides = new Properties();
 
+    /**
+     *
+     */
     public ExtensionAlert() {
-        super(NAME);
+        super();
+        initialize();
+    }
+
+    /**
+     * @param name
+     */
+    public ExtensionAlert(String name) {
+        super(name);
+    }
+
+    /**
+     * This method initializes this
+     */
+    private void initialize() {
+        this.setName(NAME);
         this.setOrder(27);
     }
 
@@ -107,39 +115,8 @@ public class ExtensionAlert extends ExtensionAdaptor implements
             ExtensionHelp.enableHelpKey(getAlertPanel(), "ui.tabs.alerts");
         }
         extensionHook.addSessionListener(this);
-        extensionHook.addOptionsChangedListener(this);
 
     }
-
-	@Override
-	public void optionsLoaded() {
-		reloadOverridesFile();
-	}
-
-	@Override
-	public void optionsChanged(OptionsParam optionsParam) {
-		reloadOverridesFile();
-	}
-	
-	private void reloadOverridesFile() {
-		this.alertOverrides.clear();
-
-		String filename = this.getAlertParam().getOverridesFilename();
-		if (filename != null && filename.length() > 0) {
-			File file = new File(filename);
-			if (! file.isFile() || ! file.canRead()) {
-				logger.error("Cannot read alert overrides file " + file.getAbsolutePath());
-			} else {
-				try (BufferedReader br = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
-					this.alertOverrides.load(br);
-					logger.info("Read " + this.alertOverrides.size() + 
-							" overrides from " + file.getAbsolutePath());
-				} catch (IOException e) {
-					logger.error("Failed to read alert overrides file " + file.getAbsolutePath(), e);
-				}
-			}
-		}
-	}
 
 	private OptionsAlertPanel getOptionsPanel() {
 		if (optionsPanel == null) {
@@ -157,7 +134,7 @@ public class ExtensionAlert extends ExtensionAdaptor implements
 
     public void alertFound(Alert alert, HistoryReference ref) {
         try {
-            logger.debug("alertFound " + alert.getName() + " " + alert.getUri());
+            logger.debug("alertFound " + alert.getAlert() + " " + alert.getUri());
             if (ref == null) {
                 ref = alert.getHistoryRef();
             }
@@ -166,123 +143,61 @@ public class ExtensionAlert extends ExtensionAdaptor implements
                 alert.setHistoryRef(ref);
             }
 
-            if (alert.getSource() == Alert.Source.UNKNOWN) {
-                alert.setSource(Alert.Source.TOOL);
-            }
-
-            alert.setSourceHistoryId(ref.getHistoryId());
-
             hrefs.put(Integer.valueOf(ref.getHistoryId()), ref);
-            
-            this.applyOverrides(alert);
 
             writeAlertToDB(alert, ref);
+            addAlertToTree(alert, ref, alert.getMessage());
 
-            try {
-                if (getView() == null || EventQueue.isDispatchThread()) {
-                    SessionStructure.addPath(Model.getSingleton().getSession(), ref, alert.getMessage());
-                } else {
-                    final HistoryReference fRef = ref;
-                    final HttpMessage fMsg = alert.getMessage();
-                    EventQueue.invokeAndWait(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            SessionStructure.addPath(Model.getSingleton().getSession(), fRef, fMsg);
-                        }
-                    });
-                }
-
-                ref.addAlert(alert);
-            } catch (Exception e) {
-                logger.error(e.getMessage(), e);
-            }
-
-            addAlertToTree(alert);
+            // The node node may have a new alert flag...
+            this.siteNodeChanged(ref.getSiteNode());
 
             // Clear the message so that it can be GC'ed
             alert.setMessage(null);
 
-            publishAlertEvent(alert, AlertEventPublisher.ALERT_ADDED_EVENT);
+            Map<String, String> map = new HashMap<String, String>();
+            map.put(AlertEventPublisher.ALERT_ID, Integer.toString(alert.getAlertId()));
+            ZAP.getEventBus().publishSyncEvent(AlertEventPublisher.getPublisher(), 
+            		new Event(AlertEventPublisher.getPublisher(), AlertEventPublisher.ALERT_ADDED_EVENT, 
+            				new Target(ref.getSiteNode()), map));
 
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         }
     }
 
-    /*
-     * This method is intended for internal use only, and should only
-     * be called by other classes for unit testing.
-     */
-    protected void applyOverrides(Alert alert) {
-        if (this.alertOverrides.isEmpty()) {
-            // Nothing to do
+    private void siteNodeChanged(final TreeNode node) {
+        if (EventQueue.isDispatchThread()) {
+        	siteNodeChangedEventHandler(this.getModel().getSession().getSiteTree(), node);
+        } else {
+            try {
+                EventQueue.invokeLater(new Runnable() {
+                    @Override
+                    public void run() {
+                    	siteNodeChangedEventHandler(getModel().getSession().getSiteTree(), node);
+                    }
+                });
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
+            }
+        }
+    }
+
+    private void siteNodeChangedEventHandler(SiteMap siteTree, TreeNode node) {
+        if (node == null) {
             return;
         }
-        String changedName = this.alertOverrides.getProperty(alert.getPluginId() + ".name");
-        if (changedName != null) {
-            alert.setName(applyOverride(alert.getName(), changedName));
-        }
-        String changedDesc = this.alertOverrides.getProperty(alert.getPluginId() + ".description");
-        if (changedDesc != null) {
-            alert.setDescription(applyOverride(alert.getDescription(), changedDesc));
-        }
-        String changedSolution = this.alertOverrides.getProperty(alert.getPluginId() + ".solution");
-        if (changedSolution != null) {
-            alert.setSolution(applyOverride(alert.getSolution(), changedSolution));
-        }
-        String changedOther = this.alertOverrides.getProperty(alert.getPluginId() + ".otherInfo");
-        if (changedOther != null) {
-            alert.setOtherInfo(applyOverride(alert.getOtherInfo(), changedOther));
-        }
-        String changedReference = this.alertOverrides.getProperty(alert.getPluginId() + ".reference");
-        if (changedReference != null) {
-            alert.setReference(applyOverride(alert.getReference(), changedReference));
-        }
-    }
-    
-    /*
-     * This method should only be used for testing
-     */
-    protected void setAlertOverrideProperty(String key, String value) {
-        this.alertOverrides.put(key, value);
+        siteTree.nodeChanged(node);
+        siteNodeChangedEventHandler(siteTree, node.getParent());
     }
 
-    private String applyOverride(String original, String override) {
-        if (override.startsWith("+")) {
-            return original + override.substring(1);
-        } else if (override.startsWith("-")) {
-            return override.substring(1) + original;
-        } else {
-            return override;
-        }
-    }
-
-    private void publishAlertEvent(Alert alert, String event) {
-        HistoryReference historyReference = hrefs.get(alert.getSourceHistoryId());
-        if (historyReference == null) {
-            historyReference = Control.getSingleton()
-                    .getExtensionLoader()
-                    .getExtension(ExtensionHistory.class)
-                    .getHistoryReference(alert.getSourceHistoryId());
-        }
-
-        Map<String, String> map = new HashMap<>();
-        map.put(AlertEventPublisher.ALERT_ID, Integer.toString(alert.getAlertId()));
-        map.put(AlertEventPublisher.HISTORY_REFERENCE_ID, Integer.toString(alert.getSourceHistoryId()));
-        ZAP.getEventBus().publishSyncEvent(
-                AlertEventPublisher.getPublisher(),
-                new Event(AlertEventPublisher.getPublisher(), event, new Target(historyReference.getSiteNode()), map));
-    }
-
-    private void addAlertToTree(final Alert alert) {
+    private void addAlertToTree(final Alert alert, final HistoryReference ref, final HttpMessage msg) {
     	
         if (Constant.isLowMemoryOptionSet()) {
         	return;
         }
     	
         if (!View.isInitialised() || EventQueue.isDispatchThread()) {
-            addAlertToTreeEventHandler(alert);
+            addAlertToTreeEventHandler(alert, ref, msg);
 
         } else {
 
@@ -294,7 +209,7 @@ public class ExtensionAlert extends ExtensionAdaptor implements
 
                     @Override
                     public void run() {
-                        addAlertToTreeEventHandler(alert);
+                        addAlertToTreeEventHandler(alert, ref, msg);
                     }
                 });
             } catch (Exception e) {
@@ -308,7 +223,7 @@ public class ExtensionAlert extends ExtensionAdaptor implements
     	return this.getModel().getSession().isInScope(alert.getHistoryRef());
     }
 
-    private void addAlertToTreeEventHandler(Alert alert) {
+    private void addAlertToTreeEventHandler(Alert alert, HistoryReference ref, HttpMessage msg) {
 
         synchronized (this.getTreeModel()) {
         	this.getTreeModel().addPath(alert);
@@ -319,6 +234,19 @@ public class ExtensionAlert extends ExtensionAdaptor implements
                 getAlertPanel().expandRoot();
                 this.recalcAlerts();
             }
+        }
+
+        SiteMap siteTree = this.getModel().getSession().getSiteTree();
+        SiteNode node = siteTree.findNode(alert.getMsgUri(), alert.getMethod(), alert.getPostData());
+        if (ref != null && (node == null || !node.hasAlert(alert))) {
+            // Add new alerts to the site tree
+        	if (msg != null) {
+        		// Saves a db read, which is always well worth it!
+        		siteTree.addPath(ref, msg);
+        	} else {
+        		siteTree.addPath(ref);
+        	}
+            ref.addAlert(alert);
         }
     }
 
@@ -366,45 +294,39 @@ public class ExtensionAlert extends ExtensionAdaptor implements
             scanId = recordScan.getScanId();
         }
         RecordAlert recordAlert = tableAlert.write(
-                scanId, alert.getPluginId(), alert.getName(), alert.getRisk(), alert.getConfidence(),
+                scanId, alert.getPluginId(), alert.getAlert(), alert.getRisk(), alert.getConfidence(),
                 alert.getDescription(), alert.getUri(), alert.getParam(), alert.getAttack(),
                 alert.getOtherInfo(), alert.getSolution(), alert.getReference(),
                 alert.getEvidence(), alert.getCweId(), alert.getWascId(),
-                ref.getHistoryId(), alert.getSourceHistoryId(), alert.getSource().getId());
+                ref.getHistoryId(), alert.getSourceHistoryId());
         
         alert.setAlertId(recordAlert.getAlertId());
 
     }
 
     public void updateAlert(Alert alert) throws HttpMalformedHeaderException, DatabaseException {
-        logger.debug("updateAlert " + alert.getName() + " " + alert.getUri());
-        HistoryReference hRef = hrefs.get(alert.getSourceHistoryId());
-        if (hRef != null) {
-            updateAlertInDB(alert);
-            hRef.updateAlert(alert);
-            publishAlertEvent(alert, AlertEventPublisher.ALERT_CHANGED_EVENT);
-            updateAlertInTree(alert, alert);
+        logger.debug("updateAlert " + alert.getAlert() + " " + alert.getUri());
+        updateAlertInDB(alert);
+        if (alert.getHistoryRef() != null) {
+            this.siteNodeChanged(alert.getHistoryRef().getSiteNode());
         }
     }
 
     private void updateAlertInDB(Alert alert) throws HttpMalformedHeaderException, DatabaseException {
 
         TableAlert tableAlert = getModel().getDb().getTableAlert();
-        tableAlert.update(alert.getAlertId(), alert.getName(), alert.getRisk(),
+        tableAlert.update(alert.getAlertId(), alert.getAlert(), alert.getRisk(),
                 alert.getConfidence(), alert.getDescription(), alert.getUri(),
                 alert.getParam(), alert.getAttack(), alert.getOtherInfo(), alert.getSolution(), alert.getReference(), 
                 alert.getEvidence(), alert.getCweId(), alert.getWascId(), alert.getSourceHistoryId());
     }
 
     public void displayAlert(Alert alert) {
-        logger.debug("displayAlert " + alert.getName() + " " + alert.getUri());
+        logger.debug("displayAlert " + alert.getAlert() + " " + alert.getUri());
         this.alertPanel.getAlertViewPanel().displayAlert(alert);
     }
 
     public void updateAlertInTree(Alert originalAlert, Alert alert) {
-        if (Constant.isLowMemoryOptionSet()) {
-            return;
-        }
         this.getTreeModel().updatePath(originalAlert, alert);
     	if (isInFilter(alert)) {
     		this.getFilteredTreeModel().updatePath(originalAlert, alert);
@@ -488,7 +410,7 @@ public class ExtensionAlert extends ExtensionAdaptor implements
             historyReference = alert.getHistoryRef();
             if (historyReference != null) {
                 // The ref can be null if hrefs are purged
-                addAlertToTree(alert);
+                addAlertToTree(alert, historyReference, null);
                 Integer key = Integer.valueOf(historyId);
                 if (!hrefs.containsKey(key)) {
                     this.hrefs.put(key, alert.getHistoryRef());
@@ -501,6 +423,7 @@ public class ExtensionAlert extends ExtensionAdaptor implements
     private PopupMenuAlertEdit getPopupMenuAlertEdit() {
         if (popupMenuAlertEdit == null) {
             popupMenuAlertEdit = new PopupMenuAlertEdit();
+            popupMenuAlertEdit.setExtension(this);
         }
         return popupMenuAlertEdit;
     }
@@ -508,6 +431,7 @@ public class ExtensionAlert extends ExtensionAdaptor implements
     private PopupMenuAlertDelete getPopupMenuAlertDelete() {
         if (popupMenuAlertDelete == null) {
             popupMenuAlertDelete = new PopupMenuAlertDelete();
+            popupMenuAlertDelete.setExtension(this);
         }
         return popupMenuAlertDelete;
     }
@@ -515,6 +439,7 @@ public class ExtensionAlert extends ExtensionAdaptor implements
     private PopupMenuAlertsRefresh getPopupMenuAlertsRefresh() {
         if (popupMenuAlertsRefresh == null) {
             popupMenuAlertsRefresh = new PopupMenuAlertsRefresh();
+            popupMenuAlertsRefresh.setExtension(this);
         }
         return popupMenuAlertsRefresh;
     }
@@ -527,7 +452,7 @@ public class ExtensionAlert extends ExtensionAdaptor implements
     }
 
     public void deleteAlert(Alert alert) {
-        logger.debug("deleteAlert " + alert.getName() + " " + alert.getUri());
+        logger.debug("deleteAlert " + alert.getAlert() + " " + alert.getUri());
 
         try {
             getModel().getDb().getTableAlert().deleteAlert(alert.getAlertId());
@@ -536,7 +461,19 @@ public class ExtensionAlert extends ExtensionAdaptor implements
         }
 
         deleteAlertFromDisplay(alert);
-        publishAlertEvent(alert, AlertEventPublisher.ALERT_REMOVED_EVENT);
+
+        Map<String, String> map = new HashMap<String, String>();
+        map.put(AlertEventPublisher.ALERT_ID, Integer.toString(alert.getAlertId()));
+
+        if (alert.getHistoryRef() != null) {
+        	ZAP.getEventBus().publishSyncEvent(AlertEventPublisher.getPublisher(), 
+        			new Event(AlertEventPublisher.getPublisher(), AlertEventPublisher.ALERT_REMOVED_EVENT, 
+        					new Target(alert.getHistoryRef().getSiteNode()), map));
+        } else {
+            ZAP.getEventBus().publishSyncEvent(AlertEventPublisher.getPublisher(), 
+            		new Event(AlertEventPublisher.getPublisher(), AlertEventPublisher.ALERT_REMOVED_EVENT, null, map));
+        }
+
     }
 
     public void deleteAllAlerts() {
@@ -588,14 +525,27 @@ public class ExtensionAlert extends ExtensionAdaptor implements
     }
 
     private void deleteAlertFromDisplayEventHandler(Alert alert) {
+        // Note - tried doing this in a SwingWorker but it too a LOT longer to run
+        SiteMap siteTree = this.getModel().getSession().getSiteTree();
+        SiteNode node = siteTree.findNode(alert.getMsgUri(), alert.getMethod(), alert.getPostData());
+        if (node != null && node.hasAlert(alert)) {
+            node.deleteAlert(alert);
+            siteNodeChanged(node);
+        }
+
         synchronized (this.getTreeModel()) {
         	this.getTreeModel().deletePath(alert);
         	this.getFilteredTreeModel().deletePath(alert);
             List<HistoryReference> toDelete = new ArrayList<>();
             for (HistoryReference href : hrefs.values()) {
-                if (href.hasAlert(alert)) {
+                if (href.getAlerts().contains(alert)) {
                     href.deleteAlert(alert);
-                    if (!href.hasAlerts()) {
+                    node = siteTree.findNode(alert.getMsgUri(), alert.getMethod(), alert.getPostData());
+                    if (node != null) {
+                        node.deleteAlert(alert);
+                        siteNodeChanged(node);
+                    }
+                    if (href.getAlerts().size() == 0) {
                         toDelete.add(href);
                     }
                 }
@@ -698,11 +648,8 @@ public class ExtensionAlert extends ExtensionAdaptor implements
                 int alertId = v.get(i).intValue();
                 RecordAlert recAlert = tableAlert.read(alertId);
                 Alert alert = new Alert(recAlert);
-                if (alert.getHistoryRef() != null) {
-                    // Only use the alert if it has a history reference.
-                    if (!allAlerts.contains(alert)) {
-                        allAlerts.add(alert);
-                    }
+                if (!allAlerts.contains(alert)) {
+                    allAlerts.add(alert);
                 }
             }
         } catch (DatabaseException e) {
@@ -759,7 +706,7 @@ public class ExtensionAlert extends ExtensionAdaptor implements
     }
     
     private String alertFingerprint(Alert alert) {
-    	return alert.getPluginId() + "/" + alert.getName() + "/" + alert.getRisk() + "/" + alert.getConfidence();
+    	return alert.getPluginId() + "/" + alert.getRisk() + "/" + alert.getConfidence();
     }
 
     @Override

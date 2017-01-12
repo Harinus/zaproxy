@@ -36,16 +36,19 @@ import org.zaproxy.zap.model.Context;
  * The implementors of new Session Management Methods should also implement a corresponding type.
  * The system automatically detects and loads {@link SessionManagementMethodType} classes and,
  * through them, the corresponding session management methods.
+ * </p>
+ * 
+ * @param <T> the corresponding session management method
  */
 public abstract class SessionManagementMethodType {
 
 	/**
-	 * Builds a new, empty, session management method. The session management method should then be
+	 * Builds a new, empty, session management method. The session mangement method should then be
 	 * configured through its corresponding Options panel.
 	 * 
 	 * @param contextId the context id
 	 * @return the session management method
-	 * @see #buildOptionsPanel(Context)
+	 * @see SessionManagementMethodType#buildOptionsPanel(SessionManagementMethod, int)
 	 */
 	public abstract SessionManagementMethod createSessionManagementMethod(int contextId);
 
@@ -69,7 +72,7 @@ public abstract class SessionManagementMethodType {
 	 * 
 	 * @param uiSharedContext the ui shared context on which the panel should work
 	 * @return the abstract session method options panel
-	 * @see #hasOptionsPanel()
+	 * @see SessionManagementMethodType#hasOptionsPanel
 	 */
 	public abstract AbstractSessionManagementMethodOptionsPanel buildOptionsPanel(Context uiSharedContext);
 
@@ -77,7 +80,7 @@ public abstract class SessionManagementMethodType {
 	 * Checks if the corresponding {@link SessionManagementMethod} has an options panel that can be
 	 * used for configuration.
 	 * 
-	 * @see #buildOptionsPanel(Context)
+	 * @see SessionManagementMethodType#buildOptionsPanel
 	 * 
 	 * @return true, if successful
 	 */
@@ -86,7 +89,7 @@ public abstract class SessionManagementMethodType {
 	/**
 	 * Checks if is this the type for the Session Management Method provided as parameter.
 	 * 
-	 * @param method the method
+	 * @param methodClass the method class
 	 * @return true, if is type for method
 	 */
 	public abstract boolean isTypeForMethod(SessionManagementMethod method);
@@ -112,9 +115,8 @@ public abstract class SessionManagementMethodType {
 	 * session management method type.
 	 * 
 	 * @param session the session
-	 * @param contextId the context ID
+	 * @param context the context
 	 * @return the session management method
-	 * @throws DatabaseException if an error occurred while loading the authentication method
 	 */
 	public abstract SessionManagementMethod loadMethodFromSession(Session session, int contextId)
 			throws DatabaseException;
@@ -127,23 +129,23 @@ public abstract class SessionManagementMethodType {
 	 * @param method the session management method to persist
 	 * @throws UnsupportedSessionManagementMethodException the unsupported session management method
 	 *             exception
-	 * @throws DatabaseException if an error occurred while persisting the authentication method
+	 * @throws DatabaseException the sQL exception
 	 */
 	public abstract void persistMethodToSession(Session session, int contextId, SessionManagementMethod method)
-			throws DatabaseException;
+			throws UnsupportedSessionManagementMethodException, DatabaseException;
 
 	/**
 	 * Export the method to the configuration
-	 * @param config the configurations where to export/save the session management method
-	 * @param sessionMethod the session management method to be exported
+	 * @param config
+	 * @param sessionMethod
 	 */
 	public abstract void exportData(Configuration config, SessionManagementMethod sessionMethod);
 
 	/**
 	 * Import the method from the configuration
-	 * @param config the configurations from where to import/load the session management method
-	 * @param sessionMethod where to set the imported session management method data
-	 * @throws ConfigurationException if an error occurred while reading the session management method data 
+	 * @param config
+	 * @param sessionMethod
+	 * @throws ConfigurationException
 	 */
 	public abstract void importData(Configuration config, SessionManagementMethod sessionMethod) throws ConfigurationException;
 
